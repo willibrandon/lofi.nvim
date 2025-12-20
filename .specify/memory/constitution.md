@@ -1,19 +1,20 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 0.0.0 -> 1.0.0 (initial ratification)
-Modified principles: N/A (initial version)
+Version change: 1.0.0 -> 1.1.0 (new principle added)
+Modified principles: None
 Added sections:
-  - Core Principles (5 principles)
-  - Architecture Constraints
-  - Development Workflow
-  - Governance
-Removed sections: N/A
+  - Principle VI: Complete Implementation
+Removed sections: None
 Templates requiring updates:
-  - .specify/templates/plan-template.md: Constitution Check section exists, compatible
-  - .specify/templates/spec-template.md: No constitution references, compatible
-  - .specify/templates/tasks-template.md: No constitution references, compatible
-Follow-up TODOs: None
+  - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section exists)
+  - .specify/templates/spec-template.md: ✅ Compatible (no changes needed)
+  - .specify/templates/tasks-template.md: ⚠️ Update recommended - remove "STOP and VALIDATE" language
+  - .claude/commands/speckit/speckit.implement.md: ⚠️ Update recommended - remove progress checkpoints
+Follow-up TODOs:
+  - Update speckit.implement.md to remove "Report progress after each completed task"
+  - Update speckit.implement.md to remove checklist approval gates
+  - Update tasks-template.md to remove incremental delivery language
 -->
 
 # lofi.nvim Constitution
@@ -83,6 +84,20 @@ Code MUST favor simplicity over abstraction, exposing a composable Lua API.
 **Rationale:** Users should be able to script lofi.nvim into their workflows.
 Over-engineering creates maintenance burden without delivering user value.
 
+### VI. Complete Implementation
+
+All code written MUST be fully functional with zero deferred work.
+
+- NO TODO comments, FIXME markers, or placeholder implementations MUST exist in merged code
+- NO unused code, dead code paths, or stubbed functions MUST be committed
+- NO deferral to "future phases" or "later tasks" - implement completely or not at all
+- Every function written MUST be called; every module written MUST be imported
+- Implementation MUST be production-ready when committed, not "good enough for now"
+- If a feature cannot be fully implemented, it MUST NOT be partially implemented
+
+**Rationale:** Partial implementations create technical debt, confuse future maintainers,
+and signal incomplete thinking. Ship working code or ship nothing.
+
 ## Architecture Constraints
 
 These constraints derive from the Core Principles and MUST be followed.
@@ -123,6 +138,7 @@ These constraints derive from the Core Principles and MUST be followed.
 - New daemon RPC methods MUST include contract tests
 - Configuration changes MUST update both Lua validation and documentation
 - Breaking changes MUST be documented in CHANGELOG with migration guidance
+- Code MUST contain zero TODOs, FIXMEs, or incomplete implementations (Principle VI)
 
 ### Documentation Requirements
 
@@ -151,5 +167,6 @@ These constraints derive from the Core Principles and MUST be followed.
 - All PRs SHOULD reference relevant principles when making architectural decisions
 - Constitution violations MUST be resolved before merge
 - Complexity additions MUST be justified against Principle V (Simplicity)
+- Incomplete implementations MUST be rejected per Principle VI (Complete Implementation)
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19
+**Version**: 1.1.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19

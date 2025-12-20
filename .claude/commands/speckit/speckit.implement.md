@@ -34,16 +34,8 @@ You **MUST** consider the user input before proceeding (if not empty).
      - **PASS**: All checklists have 0 incomplete items
      - **FAIL**: One or more checklists have incomplete items
 
-   - **If any checklist is incomplete**:
-     - Display the table with incomplete item counts
-     - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
-     - Wait for user response before continuing
-     - If user says "no" or "wait" or "stop", halt execution
-     - If user says "yes" or "proceed" or "continue", proceed to step 3
-
-   - **If all checklists are complete**:
-     - Display the table showing all checklists passed
-     - Automatically proceed to step 3
+   - Display the table showing checklist status
+   - Proceed to step 3 regardless of checklist status (Principle VI: Complete Implementation)
 
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
@@ -118,18 +110,27 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 8. Progress tracking and error handling:
-   - Report progress after each completed task
-   - Halt execution if any non-parallel task fails
-   - For parallel tasks [P], continue with successful tasks, report failed ones
-   - Provide clear error messages with context for debugging
-   - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - Do NOT stop or report progress between tasks - continue until ALL tasks are complete
+   - Do NOT ask for approval or confirmation at any point
+   - If a task fails, fix the error immediately and continue
+   - For parallel tasks [P], execute all of them
+   - Mark each task as [X] in tasks.md only after fully implementing it
+   - **PRINCIPLE VI COMPLIANCE**: Every task MUST be fully implemented with zero TODOs, zero stubs, zero placeholders
 
 9. Completion validation:
-   - Verify all required tasks are completed
-   - Check that implemented features match the original specification
-   - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
-   - Report final status with summary of completed work
+   - Verify all tasks are marked [X] complete
+   - Verify ZERO TODO comments exist in any written code
+   - Verify ZERO unused functions or dead code paths exist
+   - Verify every written file is imported/used somewhere
+   - Run any available linters or type checkers to confirm code compiles
+   - Report final status only after 100% completion
 
-Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
+**CRITICAL - PRINCIPLE VI ENFORCEMENT**:
+- You MUST write complete, production-ready code for every task
+- You MUST NOT leave any function unimplemented
+- You MUST NOT write placeholder comments like "// implement later"
+- You MUST NOT defer any work to future phases or tasks
+- If you cannot fully implement something, you MUST NOT implement it at all
+- Continue executing until every single task in tasks.md is marked [X]
+
+Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, generate the tasks inline and then implement them - do not stop to suggest running another command.

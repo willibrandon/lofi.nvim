@@ -1,0 +1,257 @@
+//! Model loader for MusicGen ONNX models.
+//!
+//! Handles loading all required model components and configuration.
+
+use std::path::Path;
+
+use crate::error::{DaemonError, Result};
+use crate::types::ModelConfig;
+
+use super::audio_codec::MusicGenAudioCodec;
+use super::decoder::MusicGenDecoder;
+use super::text_encoder::MusicGenTextEncoder;
+
+/// Complete set of loaded MusicGen models.
+pub struct MusicGenModels {
+    /// Text encoder for converting prompts to embeddings.
+    pub text_encoder: MusicGenTextEncoder,
+    /// Decoder for autoregressive token generation.
+    pub decoder: MusicGenDecoder,
+    /// Audio codec for converting tokens to audio samples.
+    pub audio_codec: MusicGenAudioCodec,
+    /// Model configuration.
+    pub config: ModelConfig,
+    /// Model version string.
+    pub version: String,
+}
+
+impl MusicGenModels {
+    /// Returns the model version string.
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+}
+
+/// Required model files for MusicGen.
+pub const REQUIRED_MODEL_FILES: &[&str] = &[
+    "tokenizer.json",
+    "text_encoder.onnx",
+    "decoder_model.onnx",
+    "decoder_with_past_model.onnx",
+    "encodec_decode.onnx",
+];
+
+/// Checks if all required model files exist in the directory.
+///
+/// Returns Ok(()) if all files exist, or an error listing missing files.
+pub fn check_models(model_dir: &Path) -> Result<()> {
+    let mut missing = Vec::new();
+
+    for file in REQUIRED_MODEL_FILES {
+        let path = model_dir.join(file);
+        if !path.exists() {
+            missing.push(*file);
+        }
+    }
+
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(DaemonError::model_not_found(format!(
+            "Missing model files in {}: {}",
+            model_dir.display(),
+            missing.join(", ")
+        )))
+    }
+}
+
+/// Loads all MusicGen model sessions from a directory.
+///
+/// The directory should contain:
+/// - `tokenizer.json` - HuggingFace tokenizer
+/// - `text_encoder.onnx` - T5 text encoder
+/// - `decoder_model.onnx` - First pass decoder
+/// - `decoder_with_past_model.onnx` - Decoder with KV cache
+/// - `encodec_decode.onnx` - EnCodec audio decoder
+///
+/// Optionally:
+/// - `config.json` - Model configuration (uses defaults if not present)
+pub fn load_sessions(model_dir: &Path) -> Result<MusicGenModels> {
+    // Check all required files exist first
+    check_models(model_dir)?;
+
+    eprintln!("Loading text encoder...");
+    let text_encoder = MusicGenTextEncoder::load(model_dir)?;
+
+    // Load or create config
+    let config = load_or_default_config(model_dir)?;
+
+    eprintln!("Loading decoder models...");
+    let decoder = MusicGenDecoder::load(model_dir, config.clone())?;
+
+    eprintln!("Loading audio codec...");
+    let audio_codec = MusicGenAudioCodec::load(model_dir)?;
+
+    // Determine version from directory name or default
+    let version = detect_model_version(model_dir);
+
+    eprintln!("All models loaded successfully.");
+
+    Ok(MusicGenModels {
+        text_encoder,
+        decoder,
+        audio_codec,
+        config,
+        version,
+    })
+}
+
+/// Loads model configuration from config.json or uses defaults.
+fn load_or_default_config(model_dir: &Path) -> Result<ModelConfig> {
+    let config_path = model_dir.join("config.json");
+
+    if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).map_err(|e| {
+            DaemonError::model_load_failed(format!("Failed to read config.json: {}", e))
+        })?;
+
+        // Parse the config - MusicGen config has nested structure
+        let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            DaemonError::model_load_failed(format!("Failed to parse config.json: {}", e))
+        })?;
+
+        // Extract decoder config values
+        let decoder = json.get("decoder").ok_or_else(|| {
+            DaemonError::model_load_failed("config.json missing 'decoder' section".to_string())
+        })?;
+
+        let num_hidden_layers = decoder
+            .get("num_hidden_layers")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(24) as u32;
+
+        let num_attention_heads = decoder
+            .get("num_attention_heads")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(16) as u32;
+
+        let vocab_size = decoder
+            .get("vocab_size")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(2048) as u32;
+
+        let pad_token_id = decoder
+            .get("pad_token_id")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(2048);
+
+        let text_encoder = json.get("text_encoder");
+        let d_kv = text_encoder
+            .and_then(|te| te.get("d_kv"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(64) as u32;
+
+        let d_model = text_encoder
+            .and_then(|te| te.get("d_model"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1024) as u32;
+
+        Ok(ModelConfig {
+            vocab_size,
+            num_hidden_layers,
+            num_attention_heads,
+            d_model,
+            d_kv,
+            audio_channels: 1,
+            sample_rate: 32000,
+            codebooks: 4,
+            pad_token_id,
+        })
+    } else {
+        // Use default musicgen-small config
+        Ok(ModelConfig::musicgen_small())
+    }
+}
+
+/// Detects model version from directory structure.
+fn detect_model_version(model_dir: &Path) -> String {
+    let dir_name = model_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    // Check for common patterns
+    if dir_name.contains("fp16") {
+        if dir_name.contains("medium") {
+            return "musicgen-medium-fp16-v1".to_string();
+        }
+        return "musicgen-small-fp16-v1".to_string();
+    }
+
+    if dir_name.contains("fp32") {
+        if dir_name.contains("medium") {
+            return "musicgen-medium-fp32-v1".to_string();
+        }
+        return "musicgen-small-fp32-v1".to_string();
+    }
+
+    if dir_name.contains("medium") {
+        return "musicgen-medium-v1".to_string();
+    }
+
+    // Default
+    "musicgen-small-fp16-v1".to_string()
+}
+
+/// HuggingFace model URLs for musicgen-small-fp16.
+pub const MODEL_URLS: &[(&str, &str)] = &[
+    (
+        "config.json",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small/config.json",
+    ),
+    (
+        "tokenizer.json",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small/tokenizer.json",
+    ),
+    (
+        "text_encoder.onnx",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small_fp16/text_encoder.onnx",
+    ),
+    (
+        "decoder_model.onnx",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small_fp16/decoder_model.onnx",
+    ),
+    (
+        "decoder_with_past_model.onnx",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small_fp16/decoder_with_past_model.onnx",
+    ),
+    (
+        "encodec_decode.onnx",
+        "https://huggingface.co/gabotechs/music_gen/resolve/main/small_fp16/encodec_decode.onnx",
+    ),
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn detect_version_fp16() {
+        let path = PathBuf::from("/path/to/small_fp16");
+        assert_eq!(detect_model_version(&path), "musicgen-small-fp16-v1");
+    }
+
+    #[test]
+    fn detect_version_medium() {
+        let path = PathBuf::from("/path/to/medium_fp32");
+        assert_eq!(detect_model_version(&path), "musicgen-medium-fp32-v1");
+    }
+
+    #[test]
+    fn required_files_list() {
+        assert_eq!(REQUIRED_MODEL_FILES.len(), 5);
+        assert!(REQUIRED_MODEL_FILES.contains(&"tokenizer.json"));
+        assert!(REQUIRED_MODEL_FILES.contains(&"encodec_decode.onnx"));
+    }
+}

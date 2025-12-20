@@ -22,7 +22,7 @@ half = "2.4.1"
 hound = "3.5.1"
 
 # HTTP client for model downloads
-reqwest = { version = "0.12", features = ["stream"] }
+reqwest = { version = "0.12", features = ["stream", "blocking"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -42,3 +42,16 @@ anyhow = "1"
 
 # Platform-specific directories
 directories = "5"
+
+# Random number generation for sampling
+rand = "0.8"
+
+# Hex encoding for track IDs
+hex = "0.4"
+
+# Numeric traits for tensor operations
+num-traits = "0.2"
+
+[dev-dependencies]
+# Temporary files for tests
+tempfile = "3"

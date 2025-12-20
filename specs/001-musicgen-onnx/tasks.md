@@ -73,36 +73,36 @@ Based on plan.md structure:
 
 ### Core Model Pipeline
 
-- [ ] T014 [P0] Create delay pattern masking for 4-codebook architecture with DelayPatternMaskIds struct, push(), last_delayed_masked(), last_de_delayed() per research.md D4 in daemon/src/models/delay_pattern.rs
-- [ ] T015 [P0] Create text encoder wrapper with MusicGenTextEncoder struct loading tokenizer.json and text_encoder.onnx, encode(text) -> (embeddings, attention_mask) in daemon/src/models/text_encoder.rs
-- [ ] T016 [P0] Create logits processing with apply_free_guidance(scale=3.0), sample_top_k() functions per research.md D5 in daemon/src/models/logits.rs
-- [ ] T017 [P0] Create decoder wrapper with MusicGenDecoder struct supporting KV cache, first iteration with decoder_model.onnx, subsequent with decoder_with_past_model.onnx per research.md D3 in daemon/src/models/decoder.rs
-- [ ] T018 [P0] Create audio codec wrapper with MusicGenAudioCodec struct loading encodec_decode.onnx, decode(tokens) -> Vec<f32> audio samples in daemon/src/models/audio_codec.rs
-- [ ] T019 [P0] Create model loader with load_sessions(model_dir) -> Result<(TextEncoder, Decoder, AudioCodec)> handling ONNX session creation in daemon/src/models/loader.rs
-- [ ] T020 [P0] Create models module re-exporting all model components in daemon/src/models/mod.rs
+- [x] T014 [P0] Create delay pattern masking for 4-codebook architecture with DelayPatternMaskIds struct, push(), last_delayed_masked(), last_de_delayed() per research.md D4 in daemon/src/models/delay_pattern.rs
+- [x] T015 [P0] Create text encoder wrapper with MusicGenTextEncoder struct loading tokenizer.json and text_encoder.onnx, encode(text) -> (embeddings, attention_mask) in daemon/src/models/text_encoder.rs
+- [x] T016 [P0] Create logits processing with apply_free_guidance(scale=3.0), sample_top_k() functions per research.md D5 in daemon/src/models/logits.rs
+- [x] T017 [P0] Create decoder wrapper with MusicGenDecoder struct supporting KV cache, first iteration with decoder_model.onnx, subsequent with decoder_with_past_model.onnx per research.md D3 in daemon/src/models/decoder.rs
+- [x] T018 [P0] Create audio codec wrapper with MusicGenAudioCodec struct loading encodec_decode.onnx, decode(tokens) -> Vec<f32> audio samples in daemon/src/models/audio_codec.rs
+- [x] T019 [P0] Create model loader with load_sessions(model_dir) -> Result<(TextEncoder, Decoder, AudioCodec)> handling ONNX session creation in daemon/src/models/loader.rs
+- [x] T020 [P0] Create models module re-exporting all model components in daemon/src/models/mod.rs
 
 ### Audio Output
 
-- [ ] T021 [P0] [P] Create WAV writer with write_wav(samples: &[f32], path: &Path, sample_rate: 32000) using hound crate per research.md D6 in daemon/src/audio/wav.rs
-- [ ] T022 [P0] Create audio module re-exporting wav in daemon/src/audio/mod.rs
+- [x] T021 [P0] [P] Create WAV writer with write_wav(samples: &[f32], path: &Path, sample_rate: 32000) using hound crate per research.md D6 in daemon/src/audio/wav.rs
+- [x] T022 [P0] Create audio module re-exporting wav in daemon/src/audio/mod.rs
 
 ### Phase 0 CLI Entry Point
 
-- [ ] T023 [P0] Create CLI argument parser with prompt, duration (5-120, default 10), output path, model_dir using clap in daemon/src/cli.rs
-- [ ] T024 [P0] Create generation pipeline function generate(prompt, duration, seed, model_dir) -> Result<Vec<f32>> orchestrating text_encoder -> decoder loop -> audio_codec in daemon/src/generation/pipeline.rs
-- [ ] T025 [P0] Create main.rs with CLI mode detection, model loading, generation execution, WAV output, timing measurement in daemon/src/main.rs
-- [ ] T026 [P0] Create generation module re-exporting pipeline in daemon/src/generation/mod.rs
-- [ ] T027 [P0] Update lib.rs to export models, audio, generation modules in daemon/src/lib.rs
+- [x] T023 [P0] Create CLI argument parser with prompt, duration (5-120, default 10), output path, model_dir using clap in daemon/src/cli.rs
+- [x] T024 [P0] Create generation pipeline function generate(prompt, duration, seed, model_dir) -> Result<Vec<f32>> orchestrating text_encoder -> decoder loop -> audio_codec in daemon/src/generation/pipeline.rs
+- [x] T025 [P0] Create main.rs with CLI mode detection, model loading, generation execution, WAV output, timing measurement in daemon/src/main.rs
+- [x] T026 [P0] Create generation module re-exporting pipeline in daemon/src/generation/mod.rs
+- [x] T027 [P0] Update lib.rs to export models, audio, generation modules in daemon/src/lib.rs
 
 ### Phase 0 Verification (MANDATORY - Principle VI)
 
-- [ ] V007 [VERIFY] Run `cargo build --release` in daemon/ - must succeed with zero warnings
-- [ ] V008 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
-- [ ] V009 [VERIFY] Confirm all daemon/src/*.rs files are imported in lib.rs or main.rs
-- [ ] V010 [VERIFY] Run `cargo run --release -- --help` - must show CLI usage
-- [ ] V011 [VERIFY] Run Phase 0 validation: `cargo run --release -- --prompt "lofi hip hop" --duration 10 --output test.wav` - must complete in <120s
-- [ ] V012 [VERIFY] Confirm test.wav exists and is playable audio
-- [ ] V013 [VERIFY] **GO/NO-GO DECISION**: If V011 and V012 pass, proceed to Phase 4. If FAIL, stop and investigate.
+- [x] V007 [VERIFY] Run `cargo build --release` in daemon/ - must succeed with zero warnings
+- [x] V008 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
+- [x] V009 [VERIFY] Confirm all daemon/src/*.rs files are imported in lib.rs or main.rs
+- [x] V010 [VERIFY] Run `cargo run --release -- --help` - must show CLI usage
+- [x] V011 [VERIFY] Run Phase 0 validation: `cargo run --release -- --prompt "lofi hip hop" --duration 10 --output test.wav` - must complete in <120s (RESULT: 25.73s)
+- [x] V012 [VERIFY] Confirm test.wav exists and is playable audio (RESULT: 1.2MB WAV, mono 32kHz)
+- [x] V013 [VERIFY] **GO/NO-GO DECISION**: PASS - Proceed to Phase 4
 
 ---
 

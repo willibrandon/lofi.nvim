@@ -109,34 +109,34 @@ impl DaemonError {
     }
 
     /// Creates a MODEL_NOT_FOUND error.
-    pub fn model_not_found(path: &str) -> Self {
+    pub fn model_not_found(path: impl Into<String>) -> Self {
         Self::new(
             ErrorCode::ModelNotFound,
-            format!("Model files not found at: {}", path),
+            format!("Model files not found at: {}", path.into()),
         )
     }
 
     /// Creates a MODEL_LOAD_FAILED error.
-    pub fn model_load_failed(reason: &str) -> Self {
+    pub fn model_load_failed(reason: impl Into<String>) -> Self {
         Self::new(
             ErrorCode::ModelLoadFailed,
-            format!("Failed to load model: {}", reason),
+            format!("Failed to load model: {}", reason.into()),
         )
     }
 
     /// Creates a MODEL_DOWNLOAD_FAILED error.
-    pub fn model_download_failed(reason: &str) -> Self {
+    pub fn model_download_failed(reason: impl Into<String>) -> Self {
         Self::new(
             ErrorCode::ModelDownloadFailed,
-            format!("Failed to download model: {}", reason),
+            format!("Failed to download model: {}", reason.into()),
         )
     }
 
     /// Creates a MODEL_INFERENCE_FAILED error.
-    pub fn model_inference_failed(reason: &str) -> Self {
+    pub fn model_inference_failed(reason: impl Into<String>) -> Self {
         Self::new(
             ErrorCode::ModelInferenceFailed,
-            format!("Inference failed: {}", reason),
+            format!("Inference failed: {}", reason.into()),
         )
     }
 

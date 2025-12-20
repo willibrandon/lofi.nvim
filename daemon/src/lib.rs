@@ -8,6 +8,10 @@
 //! - [`types`]: Core data types (Track, GenerationJob, ModelConfig)
 //! - [`config`]: Runtime configuration (DaemonConfig, Device)
 //! - [`error`]: Error types and codes (DaemonError, ErrorCode)
+//! - [`models`]: ONNX model wrappers (TextEncoder, Decoder, AudioCodec)
+//! - [`audio`]: Audio output (WAV writer)
+//! - [`generation`]: Generation pipeline
+//! - [`cli`]: CLI argument parsing
 //!
 //! # Example
 //!
@@ -16,6 +20,7 @@
 //!     config::{DaemonConfig, Device},
 //!     types::{GenerationJob, JobPriority, ModelConfig},
 //!     error::{DaemonError, ErrorCode},
+//!     generation::generate,
 //! };
 //!
 //! // Create configuration
@@ -32,10 +37,22 @@
 //!     JobPriority::Normal,
 //!     "musicgen-small-fp16-v1",
 //! );
+//!
+//! // Generate audio (Phase 0 CLI example)
+//! let samples = generate(
+//!     "lofi hip hop beats",
+//!     10,
+//!     Some(42),
+//!     &config.effective_model_path(),
+//! )?;
 //! ```
 
+pub mod audio;
+pub mod cli;
 pub mod config;
 pub mod error;
+pub mod generation;
+pub mod models;
 pub mod types;
 
 // Re-export commonly used types at crate root for convenience

@@ -97,10 +97,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 6. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
+   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **MANDATORY VERIFICATION**: After each phase, execute ALL [VERIFY] tasks before proceeding
+   - **Verification tasks** (marked with [VERIFY]) MUST actually run the specified commands and confirm output
 
 7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -132,5 +133,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 - You MUST NOT defer any work to future phases or tasks
 - If you cannot fully implement something, you MUST NOT implement it at all
 - Continue executing until every single task in tasks.md is marked [X]
+
+**MANDATORY VERIFICATION PROTOCOL** (Principle VI):
+After completing each phase's implementation tasks, you MUST execute verification:
+
+1. **Run the build**: Execute the build command (e.g., `cargo build --release`) and confirm zero errors
+2. **Check for TODOs**: Run `grep -rn "TODO\|FIXME" src/ lua/` and confirm empty output
+3. **Verify imports**: For each new file, show where it is imported/used
+4. **Verify function calls**: For each new function, show where it is called
+5. **Run smoke test**: Execute a basic test to confirm the code runs
+
+**If any verification fails:**
+- Do NOT proceed to the next phase
+- Fix the issue immediately
+- Re-run verification until it passes
+- Only then mark the [VERIFY] tasks as [X]
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, generate the tasks inline and then implement them - do not stop to suggest running another command.

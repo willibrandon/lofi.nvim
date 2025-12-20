@@ -52,6 +52,12 @@ description: "Task list template for feature implementation"
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
 
+### Phase 1 Verification (MANDATORY - Principle VI)
+
+- [ ] V001 [VERIFY] Run build command - must succeed with zero errors
+- [ ] V002 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] V003 [VERIFY] List all new files and confirm each is imported/used
+
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
@@ -69,7 +75,12 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T008 Configure error handling and logging infrastructure
 - [ ] T009 Setup environment configuration management
 
-**Continue to next phase without stopping**
+### Phase 2 Verification (MANDATORY - Principle VI)
+
+- [ ] V004 [VERIFY] Run build command - must succeed with zero errors
+- [ ] V005 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] V006 [VERIFY] List all new files and confirm each is imported/used
+- [ ] V007 [VERIFY] Run smoke test: [specific command for foundational code]
 
 ---
 
@@ -95,7 +106,12 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T016 [US1] Add validation and error handling
 - [ ] T017 [US1] Add logging for user story 1 operations
 
-**Continue to next phase without stopping**
+### User Story 1 Verification (MANDATORY - Principle VI)
+
+- [ ] V008 [VERIFY] Run build command - must succeed with zero errors
+- [ ] V009 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] V010 [VERIFY] List all US1 files and confirm each is imported/used
+- [ ] V011 [VERIFY] Run US1 smoke test: [specific user story 1 test command]
 
 ---
 
@@ -117,7 +133,12 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
 - [ ] T023 [US2] Integrate with User Story 1 components (if needed)
 
-**Continue to next phase without stopping**
+### User Story 2 Verification (MANDATORY - Principle VI)
+
+- [ ] V012 [VERIFY] Run build command - must succeed with zero errors
+- [ ] V013 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] V014 [VERIFY] List all US2 files and confirm each is imported/used
+- [ ] V015 [VERIFY] Run US2 smoke test: [specific user story 2 test command]
 
 ---
 
@@ -138,11 +159,16 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T027 [US3] Implement [Service] in src/services/[service].py
 - [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
 
-**Continue to next phase without stopping**
+### User Story 3 Verification (MANDATORY - Principle VI)
+
+- [ ] V016 [VERIFY] Run build command - must succeed with zero errors
+- [ ] V017 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] V018 [VERIFY] List all US3 files and confirm each is imported/used
+- [ ] V019 [VERIFY] Run US3 smoke test: [specific user story 3 test command]
 
 ---
 
-[Add more user story phases as needed, following the same pattern]
+[Add more user story phases as needed, following the same pattern - each MUST include verification tasks]
 
 ---
 
@@ -156,6 +182,14 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
+
+### Final Verification (MANDATORY - Principle VI)
+
+- [ ] VFINAL-1 [VERIFY] Run full build - must succeed with zero errors/warnings
+- [ ] VFINAL-2 [VERIFY] Run `grep -rn "TODO\|FIXME" src/ lua/` - must return empty
+- [ ] VFINAL-3 [VERIFY] Confirm ALL written files are imported and used
+- [ ] VFINAL-4 [VERIFY] Confirm ALL written functions are called
+- [ ] VFINAL-5 [VERIFY] Run full integration/smoke test suite
 
 ---
 

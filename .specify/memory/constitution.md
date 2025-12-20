@@ -1,20 +1,20 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 -> 1.1.0 (new principle added)
-Modified principles: None
+Version change: 1.1.0 -> 1.2.0 (Principle VI expanded with verification requirements)
+Modified principles:
+  - Principle VI: Complete Implementation -> added mandatory verification steps
 Added sections:
-  - Principle VI: Complete Implementation
+  - Verification Protocol subsection under Principle VI
 Removed sections: None
 Templates requiring updates:
-  - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section exists)
-  - .specify/templates/spec-template.md: ✅ Compatible (no changes needed)
-  - .specify/templates/tasks-template.md: ⚠️ Update recommended - remove "STOP and VALIDATE" language
-  - .claude/commands/speckit/speckit.implement.md: ⚠️ Update recommended - remove progress checkpoints
+  - .specify/templates/plan-template.md: ✅ Compatible
+  - .specify/templates/spec-template.md: ✅ Compatible
+  - .specify/templates/tasks-template.md: ⚠️ Needs verification task pattern added
+  - .claude/commands/speckit/speckit.implement.md: ⚠️ Needs verification step enforcement
 Follow-up TODOs:
-  - Update speckit.implement.md to remove "Report progress after each completed task"
-  - Update speckit.implement.md to remove checklist approval gates
-  - Update tasks-template.md to remove incremental delivery language
+  - Update tasks-template.md to include VERIFY tasks after each phase
+  - Update speckit.implement.md to execute verification commands
 -->
 
 # lofi.nvim Constitution
@@ -98,6 +98,47 @@ All code written MUST be fully functional with zero deferred work.
 **Rationale:** Partial implementations create technical debt, confuse future maintainers,
 and signal incomplete thinking. Ship working code or ship nothing.
 
+#### Verification Protocol
+
+Every implementation phase MUST conclude with manual verification steps. These steps
+guarantee that code is complete and functional before proceeding.
+
+**Mandatory Verification After Each Phase:**
+
+1. **Build Verification**: Run the build command and confirm zero errors
+   - Rust: `cargo build --release` MUST succeed
+   - Lua: `luacheck lua/` MUST pass (if configured)
+
+2. **Dead Code Check**: Verify no unused code exists
+   - Rust: `cargo build --release 2>&1 | grep -i "unused"` MUST return empty
+   - Grep for TODO/FIXME: `grep -rn "TODO\|FIXME" src/ lua/` MUST return empty
+
+3. **Import Verification**: Every written module MUST be imported somewhere
+   - List all new files created in the phase
+   - For each file, confirm it is imported/used by another file or entry point
+
+4. **Function Call Verification**: Every written function MUST be called
+   - For Rust: `cargo build --release` with `#[warn(dead_code)]` catches this
+   - For Lua: manual review or static analysis
+
+5. **Execution Test**: Run a simple smoke test if applicable
+   - Example: `cargo run -- --help` should not panic
+   - Example: Load the Lua module in Neovim and call a function
+
+**Format for Verification Tasks in tasks.md:**
+
+```
+- [ ] VXXX [VERIFY] Run `cargo build --release` - must succeed with zero warnings
+- [ ] VXXX [VERIFY] Run `grep -rn "TODO\|FIXME" src/` - must return empty
+- [ ] VXXX [VERIFY] Confirm all new files are imported (list files, show import)
+- [ ] VXXX [VERIFY] Run smoke test: [specific command]
+```
+
+**Failure Response:**
+- If any verification fails, the phase is NOT complete
+- Fix the issue immediately before marking the phase done
+- Do NOT proceed to the next phase until verification passes
+
 ## Architecture Constraints
 
 These constraints derive from the Core Principles and MUST be followed.
@@ -139,6 +180,7 @@ These constraints derive from the Core Principles and MUST be followed.
 - Configuration changes MUST update both Lua validation and documentation
 - Breaking changes MUST be documented in CHANGELOG with migration guidance
 - Code MUST contain zero TODOs, FIXMEs, or incomplete implementations (Principle VI)
+- All verification tasks MUST pass before phase completion (Principle VI)
 
 ### Documentation Requirements
 
@@ -168,5 +210,6 @@ These constraints derive from the Core Principles and MUST be followed.
 - Constitution violations MUST be resolved before merge
 - Complexity additions MUST be justified against Principle V (Simplicity)
 - Incomplete implementations MUST be rejected per Principle VI (Complete Implementation)
+- Verification failures MUST block phase completion per Principle VI
 
-**Version**: 1.1.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19
+**Version**: 1.2.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19

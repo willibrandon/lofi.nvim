@@ -26,7 +26,7 @@ AI music generation for Neovim using MusicGen ONNX. Generate custom lofi beats, 
 
 ```lua
 {
-  "username/lofi.nvim",
+  "willibrandon/lofi.nvim",
   build = "cd daemon && cargo build --release",
   config = function()
     require("lofi").setup()
@@ -37,7 +37,7 @@ AI music generation for Neovim using MusicGen ONNX. Generate custom lofi beats, 
 ### Manual
 
 ```bash
-git clone https://github.com/username/lofi.nvim ~/.local/share/nvim/lofi.nvim
+git clone https://github.com/willibrandon/lofi.nvim ~/.local/share/nvim/lofi.nvim
 cd ~/.local/share/nvim/lofi.nvim/daemon
 cargo build --release
 ```

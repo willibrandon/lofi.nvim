@@ -1,0 +1,1 @@
+/speckit.specify Progress notifications: generation percentage and ETA. Multiple UI backends (cmdline, fidget, mini.notify, vim.notify). Throttled updates. Notify on complete, playback events, errors.

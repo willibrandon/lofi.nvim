@@ -1,0 +1,1 @@
+/speckit.specify Track cache management: LRU eviction at size limit. Metadata (prompt, seed, duration, creation time). Deterministic track IDs via hash for deduplication. List, delete, clear commands.

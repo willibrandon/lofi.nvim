@@ -1,0 +1,1 @@
+/speckit.specify Daemon lifecycle management: automatic spawning on first command, graceful shutdown on VimLeave, orphan prevention via stdin EOF detection and idle timeout, crash recovery with auto-restart, manual start/stop/restart commands, PID file management

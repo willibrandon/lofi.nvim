@@ -1,0 +1,1 @@
+/speckit.specify Procedural lofi beat generation: instant music from pre-sampled drum loops, chord progressions, ambient textures. Randomized tempo 70-90 BPM, lofi effects (vinyl crackle, low-pass, tape wobble), seed reproducibility, seamless looping. Fallback for systems without AI.

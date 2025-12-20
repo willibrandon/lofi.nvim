@@ -1,58 +1,63 @@
-/speckit.specify AI music generation via MusicGen GGML backend
+/speckit.specify AI music generation via MusicGen ONNX backend
 
 ## Context
 
-This feature implements AI-powered music generation using MusicGen-small with GGML inference. This is a high-risk feature requiring a Phase 0 feasibility checkpoint before full implementation.
+This feature implements AI-powered music generation using MusicGen-small with ONNX Runtime inference. This is a high-risk feature requiring a Phase 0 feasibility checkpoint before full implementation.
+
+**Reference Implementation**: [MusicGPT](https://github.com/gabotechs/MusicGPT) - A working Rust implementation using ONNX Runtime. Local clone at `/Users/brandon/src/MusicGPT`.
 
 ## Constitution Alignment
 
 - Principle II (Local & Private): all inference runs locally, no network, no API keys
 - Principle III (Async-First): generation runs in background, never blocks editor
-- Principle IV (Minimal Footprint): GGML backend, single binary, model weights separate
+- Principle IV (Minimal Footprint): ONNX Runtime backend, single binary, model weights separate
 
 ## Risk Assessment
 
-Reference design.md "Risk Assessment" section:
-
-**Critical Path Challenges:**
-- No production-ready GGML port of MusicGen exists
-- No standard convert.py for MusicGen → GGUF (unlike llama.cpp)
-- PABannier/encodec.cpp exists but is experimental
+**Viable Approach (proven by MusicGPT):**
+- Uses `ort` crate (ONNX Runtime Rust bindings) for inference
+- Pre-exported ONNX models available from `gabotechs/music_gen` on HuggingFace
+- Three model files: `text_encoder.onnx`, `decoder_model.onnx`, `encodec_decode.onnx`
+- Supports fp32, fp16, and int8 quantization
+- Proper KV caching for efficient autoregressive generation
+- Delay pattern masking for MusicGen's 4-codebook architecture
 
 **Phase 0 Go/No-Go Checkpoint:**
 Before building Neovim integration, prove standalone Rust CLI can:
-1. Load MusicGen weights (any format)
+1. Load MusicGen ONNX models via `ort` crate
 2. Generate 10s of audio from text prompt
 3. Run on CPU in <2 minutes
 
-If not achievable, fallback to procedural-generation.md only.
-
 ## Model Strategy
 
-Reference design.md "Model Strategy":
+### ONNX Model Files
 
-### GGUF Quantization Options
+From `gabotechs/music_gen` on HuggingFace:
+- `text_encoder.onnx` - T5 text encoder
+- `decoder_model.onnx` - Transformer decoder with KV cache
+- `encodec_decode.onnx` - Audio codec decoder
+
+### Quantization Options
 | Variant | Size | Quality | Speed | Use case |
 |---------|------|---------|-------|----------|
-| Q4_K_M | ~200MB | Good | Fast | Default |
-| Q5_K_M | ~250MB | Better | Medium | Quality-focused |
-| Q8_0 | ~400MB | Best | Slow | Audiophiles |
-| F16 | ~600MB | Reference | Slowest | Development |
+| fp32 | ~500MB | Best | Slowest | Reference/debugging |
+| fp16 | ~250MB | Excellent | Fast | Default |
+| int8 | ~150MB | Good | Fastest | Resource-constrained |
 
 ### Performance Expectations
 | Hardware | Model | 30s Audio | Notes |
 |----------|-------|-----------|-------|
-| Modern CPU (AVX2) | Q4_K_M | 60-90s | Acceptable |
-| Apple Silicon (M1+) | Q4_K_M | 30-45s | Metal acceleration |
-| CUDA GPU (RTX 3060+) | Q4_K_M | 10-20s | Optimal |
-| Older CPU (no AVX2) | Q4_K_M | 3-5min | Use procedural fallback |
+| Modern CPU (AVX2) | fp16 | 60-90s | Acceptable |
+| Apple Silicon (M1+) | fp16 | 30-45s | CoreML acceleration |
+| CUDA GPU (RTX 3060+) | fp16 | 10-20s | Optimal |
+| Older CPU (no AVX2) | fp16 | 3-5min | Reduced speed, still works |
 
 ## Requirements
 
 ### Generation request
-- Accept prompt (text), duration_sec (default 30), seed (optional), priority
+- Accept prompt (text), duration_sec (default 30, range 5-120), seed (optional), priority
 - Return track_id immediately (generation is async)
-- Queue multiple requests (serial generation, not parallel)
+- Queue multiple requests (serial generation, not parallel, max 10 pending)
 - Support priority: "high" skips queue
 
 ### Background inference
@@ -67,9 +72,10 @@ Reference design.md "Model Strategy":
 - See progress-notifications.md for UI handling
 
 ### Seed reproducibility
-- Same prompt + seed + duration + model_version = identical output
+- Same prompt + seed + duration + model_version = identical output (same machine/device)
 - If seed is null, daemon generates random seed, includes in response
 - Track ID is hash of these inputs (enables cache deduplication)
+- Cross-platform byte-identical output not guaranteed due to floating-point variance
 
 ### Device selection
 - config.model.device: "auto" | "cpu" | "cuda" | "metal"
@@ -108,7 +114,8 @@ From design.md "JSON-RPC Interface" - GENERATION section:
   "sample_rate": 32000,
   "prompt": "lofi hip hop, jazzy piano",
   "seed": 42,
-  "generation_time_sec": 72.5
+  "generation_time_sec": 72.5,
+  "model_version": "musicgen-small-fp16-v1"
 }}
 ```
 
@@ -118,9 +125,11 @@ From design.md "JSON-RPC Interface" - GENERATION section:
 - progress-notifications.md (UI updates)
 
 ## Error codes
-- MODEL_NOT_FOUND: weights file not at expected path
+- MODEL_NOT_FOUND: ONNX model files not at expected path
 - MODEL_LOAD_FAILED: corrupt file, wrong format, OOM
 - MODEL_INFERENCE_FAILED: numerical instability, OOM during generation
+- QUEUE_FULL: max 10 pending requests exceeded
+- INVALID_DURATION: duration outside 5-120 second range
 
 ## Lua API
 ```lua
@@ -142,5 +151,5 @@ lofi.on("generation_error", function(data) end)     -- {track_id, error, code}
 - Phase 0: 10s audio generated on CPU in <2 minutes
 - Model loads in <10s on modern hardware
 - Progress updates accurate within 10% of actual completion
-- Same seed produces identical output
+- Same seed produces identical output (on same machine/device)
 - GPU acceleration provides >2x speedup over CPU

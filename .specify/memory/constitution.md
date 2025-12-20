@@ -1,20 +1,16 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.0 -> 1.2.0 (Principle VI expanded with verification requirements)
+Version change: 1.3.0 -> 1.4.0 (Strengthened Principle VI: Added explicit prohibition on placeholder implementations)
 Modified principles:
-  - Principle VI: Complete Implementation -> added mandatory verification steps
-Added sections:
-  - Verification Protocol subsection under Principle VI
+  - Principle VI: Complete Implementation (strengthened language, added explicit placeholder prohibition)
+Added sections: None
 Removed sections: None
 Templates requiring updates:
-  - .specify/templates/plan-template.md: ✅ Compatible
-  - .specify/templates/spec-template.md: ✅ Compatible
-  - .specify/templates/tasks-template.md: ⚠️ Needs verification task pattern added
-  - .claude/commands/speckit/speckit.implement.md: ⚠️ Needs verification step enforcement
-Follow-up TODOs:
-  - Update tasks-template.md to include VERIFY tasks after each phase
-  - Update speckit.implement.md to execute verification commands
+  - .specify/templates/plan-template.md: ✅ Compatible (no changes needed)
+  - .specify/templates/spec-template.md: ✅ Compatible (no changes needed)
+  - .specify/templates/tasks-template.md: ✅ Compatible (already enforces complete implementation)
+Follow-up TODOs: None
 -->
 
 # lofi.nvim Constitution
@@ -88,12 +84,25 @@ Over-engineering creates maintenance burden without delivering user value.
 
 All code written MUST be fully functional with zero deferred work.
 
+**PLACEHOLDER IMPLEMENTATIONS ARE STRICTLY FORBIDDEN.**
+
 - NO TODO comments, FIXME markers, or placeholder implementations MUST exist in merged code
 - NO unused code, dead code paths, or stubbed functions MUST be committed
 - NO deferral to "future phases" or "later tasks" - implement completely or not at all
 - Every function written MUST be called; every module written MUST be imported
 - Implementation MUST be production-ready when committed, not "good enough for now"
 - If a feature cannot be fully implemented, it MUST NOT be partially implemented
+
+**Explicit Prohibitions:**
+
+- NO placeholder functions that return dummy/fake data
+- NO comments like "// placeholder for actual implementation"
+- NO functions with `unimplemented!()`, `todo!()`, `pass`, or empty bodies
+- NO unused parameters prefixed with `_` to silence warnings about incomplete code
+- NO "skeleton" or "scaffold" code that exists only to be filled in later
+- NO random/dummy data generation pretending to be real functionality
+
+**If you cannot implement real functionality, you MUST NOT implement anything.**
 
 **Rationale:** Partial implementations create technical debt, confuse future maintainers,
 and signal incomplete thinking. Ship working code or ship nothing.
@@ -139,6 +148,20 @@ guarantee that code is complete and functional before proceeding.
 - Fix the issue immediately before marking the phase done
 - Do NOT proceed to the next phase until verification passes
 
+### VII. No Fallback Implementations
+
+When implementing a feature, the agent MUST NOT preemptively build fallback implementations.
+
+- NO fallback code paths MUST be written before the primary implementation fails
+- NO "procedural fallback" or alternative approaches MUST be built speculatively
+- If a Phase 0 POC fails, the feature is DEFERRED, not replaced with a fallback
+- The agent MUST attempt the real implementation first
+- Only after explicit user instruction may an alternative approach be implemented
+
+**Rationale:** Building fallbacks before trying the real implementation wastes effort,
+creates confusion about which code path is active, and violates the principle of
+completing one thing fully before starting another.
+
 ## Architecture Constraints
 
 These constraints derive from the Core Principles and MUST be followed.
@@ -180,7 +203,9 @@ These constraints derive from the Core Principles and MUST be followed.
 - Configuration changes MUST update both Lua validation and documentation
 - Breaking changes MUST be documented in CHANGELOG with migration guidance
 - Code MUST contain zero TODOs, FIXMEs, or incomplete implementations (Principle VI)
+- Code MUST contain zero placeholder implementations (Principle VI)
 - All verification tasks MUST pass before phase completion (Principle VI)
+- NO fallback implementations MUST be built speculatively (Principle VII)
 
 ### Documentation Requirements
 
@@ -210,6 +235,8 @@ These constraints derive from the Core Principles and MUST be followed.
 - Constitution violations MUST be resolved before merge
 - Complexity additions MUST be justified against Principle V (Simplicity)
 - Incomplete implementations MUST be rejected per Principle VI (Complete Implementation)
+- Placeholder implementations MUST be rejected per Principle VI (Complete Implementation)
 - Verification failures MUST block phase completion per Principle VI
+- Speculative fallbacks MUST be rejected per Principle VII (No Fallback Implementations)
 
-**Version**: 1.2.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19
+**Version**: 1.4.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19

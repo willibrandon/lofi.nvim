@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Error Response Contract",
+  "description": "JSON-RPC error responses for generation requests",
+
+  "definitions": {
+    "JsonRpcError": {
+      "type": "object",
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "id": { "type": ["integer", "string", "null"] },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "description": "JSON-RPC error code"
+            },
+            "message": {
+              "type": "string",
+              "description": "Short error description"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "error_code": {
+                  "type": "string",
+                  "description": "Application-specific error code"
+                },
+                "details": {
+                  "type": "string",
+                  "description": "Extended error information"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["code", "message"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["jsonrpc", "id", "error"]
+    }
+  },
+
+  "errorCodes": {
+    "standard": {
+      "-32700": "Parse error - Invalid JSON",
+      "-32600": "Invalid Request - Not a valid JSON-RPC request",
+      "-32601": "Method not found - Unknown method",
+      "-32602": "Invalid params - Invalid method parameters",
+      "-32603": "Internal error - Internal JSON-RPC error"
+    },
+    "application": {
+      "-32000": {
+        "name": "MODEL_NOT_FOUND",
+        "description": "ONNX model files not found at expected path",
+        "recovery": "Run model download or check model_path configuration"
+      },
+      "-32001": {
+        "name": "MODEL_LOAD_FAILED",
+        "description": "Failed to load ONNX models (corrupt, wrong format, or OOM)",
+        "recovery": "Re-download models, check available memory"
+      },
+      "-32002": {
+        "name": "MODEL_DOWNLOAD_FAILED",
+        "description": "Failed to download models from HuggingFace",
+        "recovery": "Check network connection, retry later"
+      },
+      "-32003": {
+        "name": "MODEL_INFERENCE_FAILED",
+        "description": "Inference failed during generation (numerical instability or OOM)",
+        "recovery": "Try shorter duration, check memory, report if persistent"
+      },
+      "-32004": {
+        "name": "QUEUE_FULL",
+        "description": "Maximum 10 pending requests exceeded",
+        "recovery": "Wait for current generation to complete"
+      },
+      "-32005": {
+        "name": "INVALID_DURATION",
+        "description": "Duration must be between 5 and 120 seconds",
+        "recovery": "Provide duration within valid range"
+      },
+      "-32006": {
+        "name": "INVALID_PROMPT",
+        "description": "Prompt must be 1-1000 characters",
+        "recovery": "Provide non-empty prompt under 1000 characters"
+      },
+      "-32007": {
+        "name": "DOWNLOAD_CONSENT_REQUIRED",
+        "description": "User consent required before downloading models",
+        "recovery": "Call confirm_download method with consent=true"
+      }
+    }
+  },
+
+  "examples": {
+    "queue_full": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "error": {
+        "code": -32004,
+        "message": "Queue full",
+        "data": {
+          "error_code": "QUEUE_FULL",
+          "details": "Maximum 10 pending requests. Current queue: 10"
+        }
+      }
+    },
+    "invalid_duration": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "error": {
+        "code": -32005,
+        "message": "Invalid duration",
+        "data": {
+          "error_code": "INVALID_DURATION",
+          "details": "Duration 150 exceeds maximum of 120 seconds"
+        }
+      }
+    },
+    "model_not_found": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "error": {
+        "code": -32000,
+        "message": "Model not found",
+        "data": {
+          "error_code": "MODEL_NOT_FOUND",
+          "details": "text_encoder.onnx not found at /Users/user/.cache/lofi/models/"
+        }
+      }
+    }
+  }
+}

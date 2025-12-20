@@ -1,0 +1,21 @@
+{
+  "runtime": {
+    "version": "LuaJIT",
+    "special": {
+      "require": "require"
+    }
+  },
+  "diagnostics": {
+    "globals": ["vim"]
+  },
+  "workspace": {
+    "library": [
+      "$VIMRUNTIME/lua",
+      "${3rd}/luv/library"
+    ],
+    "checkThirdParty": false
+  },
+  "telemetry": {
+    "enable": false
+  }
+}

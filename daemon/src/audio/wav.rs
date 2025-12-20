@@ -11,8 +11,8 @@ use crate::error::{DaemonError, Result};
 /// Audio sample rate for MusicGen output (32kHz).
 pub const SAMPLE_RATE: u32 = 32000;
 
-/// Number of audio channels (mono).
-pub const CHANNELS: u16 = 1;
+/// Number of audio channels (stereo).
+pub const CHANNELS: u16 = 2;
 
 /// Writes audio samples to a WAV file.
 ///
@@ -43,6 +43,10 @@ pub fn write_wav(samples: &[f32], path: &Path, sample_rate: u32) -> Result<()> {
     })?;
 
     for sample in samples {
+        // Write same sample to both left and right channels
+        writer.write_sample(*sample).map_err(|e| {
+            DaemonError::model_inference_failed(format!("Failed to write sample: {}", e))
+        })?;
         writer.write_sample(*sample).map_err(|e| {
             DaemonError::model_inference_failed(format!("Failed to write sample: {}", e))
         })?;
@@ -76,6 +80,10 @@ pub fn write_wav_to_buffer(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>>
         })?;
 
         for sample in samples {
+            // Write same sample to both left and right channels
+            writer.write_sample(*sample).map_err(|e| {
+                DaemonError::model_inference_failed(format!("Failed to write sample: {}", e))
+            })?;
             writer.write_sample(*sample).map_err(|e| {
                 DaemonError::model_inference_failed(format!("Failed to write sample: {}", e))
             })?;

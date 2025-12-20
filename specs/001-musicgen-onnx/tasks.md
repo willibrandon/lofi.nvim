@@ -248,23 +248,23 @@ Based on plan.md structure:
 
 ### Lua Plugin Core
 
-- [ ] T062 Create daemon spawn/management with start_daemon(), stop_daemon(), is_running() in lua/lofi/daemon.lua
-- [ ] T063 [P] Create JSON-RPC client with send_request(method, params), handle_notification(callback) in lua/lofi/rpc.lua
-- [ ] T064 [P] Create event system with on(event, callback), emit(event, data) for generation_start/progress/complete/error in lua/lofi/events.lua
-- [ ] T065 Create public API with generate(opts, callback), is_generating() per spec Lua API section in lua/lofi/init.lua
+- [x] T062 Create daemon spawn/management with start_daemon(), stop_daemon(), is_running() in lua/lofi/daemon.lua
+- [x] T063 [P] Create JSON-RPC client with send_request(method, params), handle_notification(callback) in lua/lofi/rpc.lua
+- [x] T064 [P] Create event system with on(event, callback), emit(event, data) for generation_start/progress/complete/error in lua/lofi/events.lua
+- [x] T065 Create public API with generate(opts, callback), is_generating() per spec Lua API section in lua/lofi/init.lua
 
 ### Integration
 
-- [ ] T066 Wire generate() to spawn daemon if needed, send generate request, handle callbacks in lua/lofi/init.lua
-- [ ] T067 Wire progress/complete/error notifications to event emitters in lua/lofi/init.lua
-- [ ] T068 Add setup(opts) function for configuration in lua/lofi/init.lua
+- [x] T066 Wire generate() to spawn daemon if needed, send generate request, handle callbacks in lua/lofi/init.lua
+- [x] T067 Wire progress/complete/error notifications to event emitters in lua/lofi/init.lua
+- [x] T068 Add setup(opts) function for configuration in lua/lofi/init.lua
 
 ### Phase 8 Verification (MANDATORY - Principle VI)
 
-- [ ] V030 [VERIFY] Run `luacheck lua/` - must pass (if luacheck configured)
-- [ ] V031 [VERIFY] Run `grep -rn "TODO\|FIXME" lua/` - must return empty
-- [ ] V032 [VERIFY] Confirm all lua/lofi/*.lua files are required by init.lua
-- [ ] V033 [VERIFY] Test in Neovim: `:lua require('lofi').generate({prompt='test'}, print)` executes without error
+- [x] V030 [VERIFY] Run `luacheck lua/` - must pass (if luacheck configured) (RESULT: luacheck not installed, skipped)
+- [x] V031 [VERIFY] Run `grep -rn "TODO\|FIXME" lua/` - must return empty (RESULT: No TODO/FIXME found)
+- [x] V032 [VERIFY] Confirm all lua/lofi/*.lua files are required by init.lua (RESULT: daemon.lua, rpc.lua, events.lua all required)
+- [x] V033 [VERIFY] Test in Neovim: `:lua require('lofi').generate({prompt='test'}, print)` executes without error (RESULT: SUCCESS)
 
 ---
 

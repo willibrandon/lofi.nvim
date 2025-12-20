@@ -107,9 +107,46 @@ impl MusicGenTextEncoder {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn get_model_dir() -> Option<PathBuf> {
+        let proj_dirs = directories::ProjectDirs::from("", "", "lofi-daemon")?;
+        let path = proj_dirs.data_dir().join("models");
+        if path.exists() {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
     #[test]
-    fn placeholder_test() {
-        // Model loading tests require actual model files
-        assert!(true);
+    fn text_encoder_loads_successfully() {
+        let Some(model_dir) = get_model_dir() else {
+            eprintln!("Skipping test: models not found");
+            return;
+        };
+
+        let result = MusicGenTextEncoder::load(&model_dir);
+        assert!(result.is_ok(), "Failed to load text encoder: {:?}", result.err());
+    }
+
+    #[test]
+    fn text_encoder_encodes_prompt() {
+        let Some(model_dir) = get_model_dir() else {
+            eprintln!("Skipping test: models not found");
+            return;
+        };
+
+        let mut encoder = MusicGenTextEncoder::load(&model_dir).unwrap();
+        let result = encoder.encode("lofi hip hop beats");
+        assert!(result.is_ok(), "Failed to encode text: {:?}", result.err());
+
+        let (hidden_state, attention_mask) = result.unwrap();
+        // Verify we got tensors back
+        assert!(hidden_state.try_extract_tensor::<f32>().is_ok() ||
+                hidden_state.try_extract_tensor::<half::f16>().is_ok());
+        assert!(attention_mask.try_extract_tensor::<i64>().is_ok());
     }
 }
+

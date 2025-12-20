@@ -4,6 +4,7 @@
 
 pub mod pipeline;
 pub mod progress;
+pub mod queue;
 
 // Re-export commonly used items
 pub use pipeline::{
@@ -11,3 +12,4 @@ pub use pipeline::{
     generate_with_progress,
 };
 pub use progress::ProgressTracker;
+pub use queue::{GenerationQueue, JobResult, QueueFullError, QueueProcessor, MAX_QUEUE_SIZE};

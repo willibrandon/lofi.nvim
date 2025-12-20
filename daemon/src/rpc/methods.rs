@@ -2,20 +2,19 @@
 //!
 //! Implements the handlers for all supported JSON-RPC methods.
 
-use std::time::Instant;
-
 use std::cell::RefCell;
+use std::time::Instant;
 
 use crate::audio::{write_wav, SAMPLE_RATE};
 use crate::cli::TOKENS_PER_SECOND;
 use crate::generation::{generate_with_models, ProgressTracker};
 use crate::models::ensure_models;
-use crate::types::{compute_track_id, Track};
+use crate::types::{compute_track_id, GenerationJob, JobPriority, Track};
 
 use super::server::{send_notification, ServerState};
 use super::types::{
     GenerateParams, GenerateResult, GenerationCompleteParams, GenerationErrorParams,
-    GenerationProgressParams, GenerationStatus, JsonRpcError,
+    GenerationProgressParams, GenerationStatus, JsonRpcError, Priority,
 };
 
 /// Handles a JSON-RPC method call.
@@ -53,6 +52,11 @@ fn handle_generate(
         .map_err(|e| JsonRpcError::invalid_params(format!("Invalid params: {}", e)))?;
 
     params.validate()?;
+
+    // Check if queue is full before proceeding
+    if state.queue.is_full() {
+        return Err(JsonRpcError::queue_full(state.queue.len()));
+    }
 
     // Generate seed if not provided
     let seed = params.seed.unwrap_or_else(rand::random);
@@ -108,121 +112,281 @@ fn handle_generate(
         .unwrap());
     }
 
-    // For now, process synchronously (queue will be added in Phase 6)
-    // Return response indicating generation is starting
-    let result = GenerateResult {
-        track_id: track_id.clone(),
-        status: GenerationStatus::Generating,
-        position: 0,
-        seed,
+    // Convert RPC priority to job priority
+    let job_priority = match params.priority {
+        Priority::High => JobPriority::High,
+        Priority::Normal => JobPriority::Normal,
     };
 
-    // Perform generation
-    let start_time = Instant::now();
-    let max_tokens = params.duration_sec as usize * TOKENS_PER_SECOND;
+    // Create a generation job
+    let job = GenerationJob::new(
+        params.prompt.clone(),
+        params.duration_sec,
+        Some(seed),
+        job_priority,
+        &model_version,
+    );
 
-    // Create progress tracker for 5% increment notifications
-    let progress_tracker = RefCell::new(ProgressTracker::new(params.duration_sec));
-    let track_id_for_progress = track_id.clone();
+    // Add job to queue and get position
+    let position = state
+        .queue
+        .add(job)
+        .map_err(|e| JsonRpcError::queue_full(e.current_size))?;
 
-    match generate_with_models(models, &params.prompt, max_tokens, |current, total| {
-        let mut tracker = progress_tracker.borrow_mut();
-        tracker.update(current);
+    // Check if this job should start immediately (position 0 and nothing generating)
+    let should_generate_now = position == 0;
 
-        // Check if we should send a notification (every 5% increment)
-        if let Some(percent) = tracker.should_notify() {
-            let (_, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
-            send_notification(
-                "generation_progress",
-                GenerationProgressParams {
-                    track_id: track_id_for_progress.clone(),
-                    percent,
-                    tokens_generated,
-                    tokens_estimated,
-                    eta_sec,
-                },
-            );
-        }
+    if should_generate_now {
+        // Pop the job from queue since we're processing it now
+        let mut job = state.queue.pop_next().unwrap();
+        job.set_generating();
 
-        // Also report at 100% (though capped at 99 by ProgressTracker until complete)
-        if current == total {
-            let (percent, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
-            send_notification(
-                "generation_progress",
-                GenerationProgressParams {
-                    track_id: track_id_for_progress.clone(),
-                    percent,
-                    tokens_generated,
-                    tokens_estimated,
-                    eta_sec,
-                },
-            );
-        }
-    }) {
-        Ok(samples) => {
-            let generation_time = start_time.elapsed().as_secs_f32();
-            let actual_duration = samples.len() as f32 / SAMPLE_RATE as f32;
+        // Return response indicating generation is starting
+        let result = GenerateResult {
+            track_id: track_id.clone(),
+            status: GenerationStatus::Generating,
+            position: 0,
+            seed,
+        };
 
-            // Write to cache directory
-            let cache_dir = state.config.effective_cache_path();
-            std::fs::create_dir_all(&cache_dir).ok();
-            let output_path = cache_dir.join(format!("{}.wav", track_id));
+        // Perform generation
+        let start_time = Instant::now();
+        let max_tokens = params.duration_sec as usize * TOKENS_PER_SECOND;
 
-            if let Err(e) = write_wav(&samples, &output_path, SAMPLE_RATE) {
+        // Create progress tracker for 5% increment notifications
+        let progress_tracker = RefCell::new(ProgressTracker::new(params.duration_sec));
+        let track_id_for_progress = track_id.clone();
+
+        match generate_with_models(models, &params.prompt, max_tokens, |current, total| {
+            let mut tracker = progress_tracker.borrow_mut();
+            tracker.update(current);
+
+            // Check if we should send a notification (every 5% increment)
+            if let Some(percent) = tracker.should_notify() {
+                let (_, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
+                send_notification(
+                    "generation_progress",
+                    GenerationProgressParams {
+                        track_id: track_id_for_progress.clone(),
+                        percent,
+                        tokens_generated,
+                        tokens_estimated,
+                        eta_sec,
+                    },
+                );
+            }
+
+            // Also report at 100% (though capped at 99 by ProgressTracker until complete)
+            if current == total {
+                let (percent, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
+                send_notification(
+                    "generation_progress",
+                    GenerationProgressParams {
+                        track_id: track_id_for_progress.clone(),
+                        percent,
+                        tokens_generated,
+                        tokens_estimated,
+                        eta_sec,
+                    },
+                );
+            }
+        }) {
+            Ok(samples) => {
+                let generation_time = start_time.elapsed().as_secs_f32();
+                let actual_duration = samples.len() as f32 / SAMPLE_RATE as f32;
+
+                // Write to cache directory
+                let cache_dir = state.config.effective_cache_path();
+                std::fs::create_dir_all(&cache_dir).ok();
+                let output_path = cache_dir.join(format!("{}.wav", track_id));
+
+                if let Err(e) = write_wav(&samples, &output_path, SAMPLE_RATE) {
+                    send_notification(
+                        "generation_error",
+                        GenerationErrorParams {
+                            track_id: track_id.clone(),
+                            code: "MODEL_INFERENCE_FAILED".to_string(),
+                            message: format!("Failed to write audio file: {}", e),
+                        },
+                    );
+                    return Err(JsonRpcError::model_inference_failed(format!(
+                        "Failed to write audio file: {}",
+                        e
+                    )));
+                }
+
+                // Create track and cache it
+                let track = Track::new(
+                    output_path.clone(),
+                    params.prompt.clone(),
+                    actual_duration,
+                    seed,
+                    model_version.clone(),
+                    generation_time,
+                );
+                state.cache.put(track);
+
+                // Send completion notification
+                send_notification(
+                    "generation_complete",
+                    GenerationCompleteParams {
+                        track_id: track_id.clone(),
+                        path: output_path.to_string_lossy().to_string(),
+                        duration_sec: actual_duration,
+                        sample_rate: SAMPLE_RATE,
+                        prompt: params.prompt,
+                        seed,
+                        generation_time_sec: generation_time,
+                        model_version,
+                    },
+                );
+
+                // Process next job in queue if any
+                process_next_job(state);
+            }
+            Err(e) => {
                 send_notification(
                     "generation_error",
                     GenerationErrorParams {
                         track_id: track_id.clone(),
                         code: "MODEL_INFERENCE_FAILED".to_string(),
-                        message: format!("Failed to write audio file: {}", e),
+                        message: e.to_string(),
                     },
                 );
-                return Err(JsonRpcError::model_inference_failed(format!(
-                    "Failed to write audio file: {}",
-                    e
-                )));
+
+                // Process next job in queue even after failure
+                process_next_job(state);
+
+                return Err(JsonRpcError::model_inference_failed(e.to_string()));
+            }
+        }
+
+        Ok(serde_json::to_value(result).unwrap())
+    } else {
+        // Job is queued, return immediately with queue position
+        Ok(serde_json::to_value(GenerateResult {
+            track_id,
+            status: GenerationStatus::Queued,
+            position,
+            seed,
+        })
+        .unwrap())
+    }
+}
+
+/// Process the next job in the queue if any.
+fn process_next_job(state: &mut ServerState) {
+    if let Some(mut job) = state.queue.pop_next() {
+        job.set_generating();
+
+        let track_id = job.track_id.clone();
+        let prompt = job.prompt.clone();
+        let duration_sec = job.duration_sec;
+        let seed = job.seed.unwrap_or_else(rand::random);
+
+        let models = state.models.as_mut().unwrap();
+        let model_version = models.version().to_string();
+
+        let start_time = Instant::now();
+        let max_tokens = duration_sec as usize * TOKENS_PER_SECOND;
+
+        // Create progress tracker for 5% increment notifications
+        let progress_tracker = RefCell::new(ProgressTracker::new(duration_sec));
+        let track_id_for_progress = track_id.clone();
+
+        match generate_with_models(models, &prompt, max_tokens, |current, total| {
+            let mut tracker = progress_tracker.borrow_mut();
+            tracker.update(current);
+
+            if let Some(percent) = tracker.should_notify() {
+                let (_, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
+                send_notification(
+                    "generation_progress",
+                    GenerationProgressParams {
+                        track_id: track_id_for_progress.clone(),
+                        percent,
+                        tokens_generated,
+                        tokens_estimated,
+                        eta_sec,
+                    },
+                );
             }
 
-            // Create track and cache it
-            let track = Track::new(
-                output_path.clone(),
-                params.prompt.clone(),
-                actual_duration,
-                seed,
-                model_version.clone(),
-                generation_time,
-            );
-            state.cache.put(track);
+            if current == total {
+                let (percent, tokens_generated, tokens_estimated, eta_sec) = tracker.get_progress();
+                send_notification(
+                    "generation_progress",
+                    GenerationProgressParams {
+                        track_id: track_id_for_progress.clone(),
+                        percent,
+                        tokens_generated,
+                        tokens_estimated,
+                        eta_sec,
+                    },
+                );
+            }
+        }) {
+            Ok(samples) => {
+                let generation_time = start_time.elapsed().as_secs_f32();
+                let actual_duration = samples.len() as f32 / SAMPLE_RATE as f32;
 
-            // Send completion notification
-            send_notification(
-                "generation_complete",
-                GenerationCompleteParams {
-                    track_id: track_id.clone(),
-                    path: output_path.to_string_lossy().to_string(),
-                    duration_sec: actual_duration,
-                    sample_rate: SAMPLE_RATE,
-                    prompt: params.prompt,
-                    seed,
-                    generation_time_sec: generation_time,
-                    model_version,
-                },
-            );
-        }
-        Err(e) => {
-            send_notification(
-                "generation_error",
-                GenerationErrorParams {
-                    track_id: track_id.clone(),
-                    code: "MODEL_INFERENCE_FAILED".to_string(),
-                    message: e.to_string(),
-                },
-            );
-            return Err(JsonRpcError::model_inference_failed(e.to_string()));
+                let cache_dir = state.config.effective_cache_path();
+                std::fs::create_dir_all(&cache_dir).ok();
+                let output_path = cache_dir.join(format!("{}.wav", track_id));
+
+                if let Err(e) = write_wav(&samples, &output_path, SAMPLE_RATE) {
+                    send_notification(
+                        "generation_error",
+                        GenerationErrorParams {
+                            track_id: track_id.clone(),
+                            code: "MODEL_INFERENCE_FAILED".to_string(),
+                            message: format!("Failed to write audio file: {}", e),
+                        },
+                    );
+                } else {
+                    let track = Track::new(
+                        output_path.clone(),
+                        prompt.clone(),
+                        actual_duration,
+                        seed,
+                        model_version.clone(),
+                        generation_time,
+                    );
+                    state.cache.put(track);
+
+                    send_notification(
+                        "generation_complete",
+                        GenerationCompleteParams {
+                            track_id: track_id.clone(),
+                            path: output_path.to_string_lossy().to_string(),
+                            duration_sec: actual_duration,
+                            sample_rate: SAMPLE_RATE,
+                            prompt,
+                            seed,
+                            generation_time_sec: generation_time,
+                            model_version,
+                        },
+                    );
+                }
+
+                // Continue processing queue
+                process_next_job(state);
+            }
+            Err(e) => {
+                send_notification(
+                    "generation_error",
+                    GenerationErrorParams {
+                        track_id: track_id.clone(),
+                        code: "MODEL_INFERENCE_FAILED".to_string(),
+                        message: e.to_string(),
+                    },
+                );
+
+                // Continue processing queue even after failure
+                process_next_job(state);
+            }
         }
     }
-
-    Ok(serde_json::to_value(result).unwrap())
 }
 
 #[cfg(test)]

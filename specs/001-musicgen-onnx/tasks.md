@@ -189,23 +189,23 @@ Based on plan.md structure:
 
 ### Job Queue
 
-- [ ] T049 [US3] Create GenerationQueue struct with jobs: VecDeque<GenerationJob>, add(job, priority), pop_next(), len(), is_full() in daemon/src/generation/queue.rs
-- [ ] T050 [US3] Implement priority insertion: high-priority jobs inserted at front of queue in daemon/src/generation/queue.rs
-- [ ] T051 [US3] Add queue position tracking with get_position(job_id) in daemon/src/generation/queue.rs
+- [x] T049 [US3] Create GenerationQueue struct with jobs: VecDeque<GenerationJob>, add(job, priority), pop_next(), len(), is_full() in daemon/src/generation/queue.rs
+- [x] T050 [US3] Implement priority insertion: high-priority jobs inserted at front of queue in daemon/src/generation/queue.rs
+- [x] T051 [US3] Add queue position tracking with get_position(job_id) in daemon/src/generation/queue.rs
 
 ### Queue Integration
 
-- [ ] T052 [US3] Update generate method to add job to queue, return position in response in daemon/src/rpc/methods.rs
-- [ ] T053 [US3] Create queue processor running in background thread, processing jobs serially in daemon/src/generation/queue.rs
-- [ ] T054 [US3] Add QUEUE_FULL error when queue.len() >= 10 in daemon/src/rpc/methods.rs
-- [ ] T055 [US3] Update generation module re-exporting queue in daemon/src/generation/mod.rs
+- [x] T052 [US3] Update generate method to add job to queue, return position in response in daemon/src/rpc/methods.rs
+- [x] T053 [US3] Create queue processor running in background thread, processing jobs serially in daemon/src/generation/queue.rs
+- [x] T054 [US3] Add QUEUE_FULL error when queue.len() >= 10 in daemon/src/rpc/methods.rs
+- [x] T055 [US3] Update generation module re-exporting queue in daemon/src/generation/mod.rs
 
 ### User Story 3 Verification (MANDATORY - Principle VI)
 
-- [ ] V022 [VERIFY] Run `cargo build --release` - must succeed with zero errors
-- [ ] V023 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
-- [ ] V024 [VERIFY] Test queue: submit 3 requests, verify positions 0, 1, 2 returned
-- [ ] V025 [VERIFY] Test queue full: submit 11 requests, verify 11th returns QUEUE_FULL error
+- [x] V022 [VERIFY] Run `cargo build --release` - must succeed with zero errors
+- [x] V023 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
+- [x] V024 [VERIFY] Test queue: submit 3 requests, verify positions 0, 1, 2 returned (verified via unit tests)
+- [x] V025 [VERIFY] Test queue full: submit 11 requests, verify 11th returns QUEUE_FULL error (verified via unit tests)
 
 ---
 

@@ -302,9 +302,39 @@ fn duplicate_with_zeros_i64(tensor: &DynValue) -> Result<DynValue> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn get_model_dir() -> Option<PathBuf> {
+        let proj_dirs = directories::ProjectDirs::from("", "", "lofi-daemon")?;
+        let path = proj_dirs.data_dir().join("models");
+        if path.exists() {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
     #[test]
-    fn placeholder_test() {
-        // Model loading tests require actual model files
-        assert!(true);
+    fn decoder_loads_successfully() {
+        let Some(model_dir) = get_model_dir() else {
+            eprintln!("Skipping test: models not found");
+            return;
+        };
+
+        let config = ModelConfig::musicgen_small();
+        let result = MusicGenDecoder::load(&model_dir, config);
+        assert!(result.is_ok(), "Failed to load decoder: {:?}", result.err());
+    }
+
+    #[test]
+    fn decoder_with_past_exists() {
+        let Some(model_dir) = get_model_dir() else {
+            eprintln!("Skipping test: models not found");
+            return;
+        };
+
+        let decoder_with_past_path = model_dir.join("decoder_with_past_model.onnx");
+        assert!(decoder_with_past_path.exists(), "decoder_with_past_model.onnx not found");
     }
 }

@@ -149,9 +149,38 @@ fn download_file_streaming(url: &str, dest: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn get_model_dir() -> Option<PathBuf> {
+        let proj_dirs = directories::ProjectDirs::from("", "", "lofi-daemon")?;
+        let path = proj_dirs.data_dir().join("models");
+        if path.exists() {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
     #[test]
-    fn placeholder_test() {
-        // Download tests would require network access
-        assert!(true);
+    fn ensure_models_succeeds_when_present() {
+        let Some(model_dir) = get_model_dir() else {
+            eprintln!("Skipping test: models not found");
+            return;
+        };
+
+        // Should succeed without downloading since models already exist
+        let result = ensure_models(&model_dir);
+        assert!(result.is_ok(), "ensure_models failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn model_urls_are_configured() {
+        // Verify all required model files have URLs
+        for file in REQUIRED_MODEL_FILES {
+            let has_url = MODEL_URLS.iter().any(|(name, _)| name == file);
+            assert!(has_url, "Missing URL for required file: {}", file);
+        }
     }
 }
+

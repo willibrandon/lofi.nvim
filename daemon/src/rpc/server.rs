@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::cache::TrackCache;
 use crate::config::DaemonConfig;
 use crate::error::Result;
+use crate::generation::GenerationQueue;
 use crate::models::MusicGenModels;
 
 use super::methods::handle_request;
@@ -22,6 +23,8 @@ pub struct ServerState {
     pub cache: TrackCache,
     /// Daemon configuration.
     pub config: DaemonConfig,
+    /// Generation queue for pending jobs.
+    pub queue: GenerationQueue,
     /// Flag to signal server shutdown.
     shutdown: Arc<AtomicBool>,
 }
@@ -33,6 +36,7 @@ impl ServerState {
             models: None,
             cache: TrackCache::new(),
             config,
+            queue: GenerationQueue::new(),
             shutdown: Arc::new(AtomicBool::new(false)),
         }
     }

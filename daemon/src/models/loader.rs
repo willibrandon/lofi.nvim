@@ -214,8 +214,26 @@ fn load_or_default_config(model_dir: &Path) -> Result<ModelConfig> {
     }
 }
 
+/// Generates a model version string from size and precision.
+///
+/// # Arguments
+///
+/// * `size` - Model size: "small" or "medium"
+/// * `precision` - Model precision: "fp16" or "fp32"
+/// * `version` - Version number (e.g., 1)
+///
+/// # Example
+///
+/// ```
+/// use lofi_daemon::models::generate_model_version;
+/// assert_eq!(generate_model_version("small", "fp16", 1), "musicgen-small-fp16-v1");
+/// ```
+pub fn generate_model_version(size: &str, precision: &str, version: u32) -> String {
+    format!("musicgen-{}-{}-v{}", size, precision, version)
+}
+
 /// Detects model version from directory structure.
-fn detect_model_version(model_dir: &Path) -> String {
+pub fn detect_model_version(model_dir: &Path) -> String {
     let dir_name = model_dir
         .file_name()
         .and_then(|n| n.to_str())
@@ -224,24 +242,24 @@ fn detect_model_version(model_dir: &Path) -> String {
     // Check for common patterns
     if dir_name.contains("fp16") {
         if dir_name.contains("medium") {
-            return "musicgen-medium-fp16-v1".to_string();
+            return generate_model_version("medium", "fp16", 1);
         }
-        return "musicgen-small-fp16-v1".to_string();
+        return generate_model_version("small", "fp16", 1);
     }
 
     if dir_name.contains("fp32") {
         if dir_name.contains("medium") {
-            return "musicgen-medium-fp32-v1".to_string();
+            return generate_model_version("medium", "fp32", 1);
         }
-        return "musicgen-small-fp32-v1".to_string();
+        return generate_model_version("small", "fp32", 1);
     }
 
     if dir_name.contains("medium") {
-        return "musicgen-medium-v1".to_string();
+        return generate_model_version("medium", "fp16", 1);
     }
 
     // Default
-    "musicgen-small-fp16-v1".to_string()
+    generate_model_version("small", "fp16", 1)
 }
 
 /// HuggingFace model URLs for musicgen-small-fp16.
@@ -276,6 +294,18 @@ pub const MODEL_URLS: &[(&str, &str)] = &[
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn generate_version_string() {
+        assert_eq!(
+            generate_model_version("small", "fp16", 1),
+            "musicgen-small-fp16-v1"
+        );
+        assert_eq!(
+            generate_model_version("medium", "fp32", 2),
+            "musicgen-medium-fp32-v2"
+        );
+    }
 
     #[test]
     fn detect_version_fp16() {

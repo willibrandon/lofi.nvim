@@ -66,6 +66,39 @@ impl ErrorCode {
             ErrorCode::InvalidPrompt => "Prompt must be non-empty and at most 1000 characters",
         }
     }
+
+    /// Returns a recovery hint suggesting how to resolve this error.
+    pub fn recovery_hint(&self) -> &'static str {
+        match self {
+            ErrorCode::ModelNotFound => {
+                "Run the daemon once with network access to download models automatically, \
+                 or manually download from https://huggingface.co/gabotechs/music_gen"
+            }
+            ErrorCode::ModelLoadFailed => {
+                "Check available memory (4GB+ recommended), verify model files are not corrupted, \
+                 or delete cache and re-download models"
+            }
+            ErrorCode::ModelDownloadFailed => {
+                "Check internet connection, verify disk space (500MB+ required), \
+                 or try again later if HuggingFace is unavailable"
+            }
+            ErrorCode::ModelInferenceFailed => {
+                "Try reducing duration, restart the daemon, or check system memory. \
+                 If issue persists, try CPU-only mode with LOFI_DEVICE=cpu"
+            }
+            ErrorCode::QueueFull => {
+                "Wait for pending generations to complete before submitting new requests. \
+                 Maximum queue size is 10 concurrent requests"
+            }
+            ErrorCode::InvalidDuration => {
+                "Specify a duration between 5 and 120 seconds (e.g., duration_sec: 30)"
+            }
+            ErrorCode::InvalidPrompt => {
+                "Provide a descriptive prompt between 1 and 1000 characters \
+                 (e.g., 'lofi hip hop, jazzy piano, relaxing vibes')"
+            }
+        }
+    }
 }
 
 impl fmt::Display for ErrorCode {
@@ -178,7 +211,13 @@ impl DaemonError {
 
 impl fmt::Display for DaemonError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}] {}", self.code, self.message)
+        write!(
+            f,
+            "[{}] {}. Recovery: {}",
+            self.code,
+            self.message,
+            self.code.recovery_hint()
+        )
     }
 }
 
@@ -209,9 +248,22 @@ mod tests {
     }
 
     #[test]
+    fn error_code_recovery_hints_not_empty() {
+        // Ensure all error codes have non-empty recovery hints
+        assert!(!ErrorCode::ModelNotFound.recovery_hint().is_empty());
+        assert!(!ErrorCode::ModelLoadFailed.recovery_hint().is_empty());
+        assert!(!ErrorCode::ModelDownloadFailed.recovery_hint().is_empty());
+        assert!(!ErrorCode::ModelInferenceFailed.recovery_hint().is_empty());
+        assert!(!ErrorCode::QueueFull.recovery_hint().is_empty());
+        assert!(!ErrorCode::InvalidDuration.recovery_hint().is_empty());
+        assert!(!ErrorCode::InvalidPrompt.recovery_hint().is_empty());
+    }
+
+    #[test]
     fn daemon_error_display() {
         let err = DaemonError::invalid_duration(200);
         assert!(err.to_string().contains("INVALID_DURATION"));
         assert!(err.to_string().contains("200"));
+        assert!(err.to_string().contains("Recovery:"));
     }
 }

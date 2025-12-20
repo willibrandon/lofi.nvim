@@ -272,19 +272,19 @@ Based on plan.md structure:
 
 **Purpose**: Final integration, error handling, documentation
 
-- [ ] T069 [P] Add comprehensive error messages with recovery hints for all error codes in daemon/src/error.rs
-- [ ] T070 [P] Add input validation for prompt length (1-1000 chars), duration (5-120) in daemon/src/rpc/methods.rs
-- [ ] T071 [P] Add graceful shutdown handling for daemon on stdin EOF in daemon/src/main.rs
-- [ ] T072 [P] Add model version string generation (e.g., "musicgen-small-fp16-v1") in daemon/src/models/loader.rs
-- [ ] T073 Run quickstart.md validation steps to confirm Phase 0 CLI still works
+- [x] T069 [P] Add comprehensive error messages with recovery hints for all error codes in daemon/src/error.rs
+- [x] T070 [P] Add input validation for prompt length (1-1000 chars), duration (5-120) in daemon/src/rpc/methods.rs
+- [x] T071 [P] Add graceful shutdown handling for daemon on stdin EOF in daemon/src/main.rs
+- [x] T072 [P] Add model version string generation (e.g., "musicgen-small-fp16-v1") in daemon/src/models/loader.rs
+- [x] T073 Run quickstart.md validation steps to confirm Phase 0 CLI still works
 
 ### Final Verification (MANDATORY - Principle VI)
 
-- [ ] VFINAL-1 [VERIFY] Run `cargo build --release` - must succeed with zero errors/warnings
-- [ ] VFINAL-2 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/ lua/` - must return empty
-- [ ] VFINAL-3 [VERIFY] Confirm ALL written files are imported and used
-- [ ] VFINAL-4 [VERIFY] Confirm ALL written functions are called
-- [ ] VFINAL-5 [VERIFY] Run full smoke test: daemon generation + Lua API call
+- [x] VFINAL-1 [VERIFY] Run `cargo build --release` - must succeed with zero errors/warnings
+- [x] VFINAL-2 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/ lua/` - must return empty
+- [x] VFINAL-3 [VERIFY] Confirm ALL written files are imported and used
+- [x] VFINAL-4 [VERIFY] Confirm ALL written functions are called
+- [x] VFINAL-5 [VERIFY] Run full smoke test: daemon generation + Lua API call
 
 ---
 

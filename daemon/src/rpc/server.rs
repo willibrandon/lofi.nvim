@@ -68,6 +68,10 @@ pub fn run_server(mut state: ServerState) -> Result<()> {
     for line in reader.lines() {
         let line = match line {
             Ok(l) => l,
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                eprintln!("Stdin closed (EOF), shutting down gracefully...");
+                break;
+            }
             Err(e) => {
                 eprintln!("Error reading stdin: {}", e);
                 break;

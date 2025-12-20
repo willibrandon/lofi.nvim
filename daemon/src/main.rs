@@ -8,9 +8,11 @@ use std::time::Instant;
 
 use lofi_daemon::audio::write_wav;
 use lofi_daemon::cli::Cli;
+use lofi_daemon::config::DaemonConfig;
 use lofi_daemon::error::Result;
 use lofi_daemon::generation::generate_with_progress;
 use lofi_daemon::models::ensure_models;
+use lofi_daemon::rpc::{run_server, ServerState};
 
 fn main() {
     if let Err(e) = run() {
@@ -109,12 +111,16 @@ fn run_cli_mode(cli: &Cli) -> Result<()> {
 }
 
 /// Runs the daemon mode (JSON-RPC server).
-///
-/// This is a placeholder for Phase 4 implementation.
 fn run_daemon_mode() -> Result<()> {
-    eprintln!("Daemon mode not yet implemented.");
-    eprintln!("Use CLI mode with --prompt for Phase 0 testing.");
-    Ok(())
+    eprintln!("=== lofi-daemon JSON-RPC Server ===");
+    eprintln!("Reading from stdin, writing to stdout.");
+    eprintln!("Send JSON-RPC requests to control the daemon.");
+    eprintln!();
+
+    let config = DaemonConfig::default();
+    let state = ServerState::new(config);
+
+    run_server(state)
 }
 
 /// Prints usage information.

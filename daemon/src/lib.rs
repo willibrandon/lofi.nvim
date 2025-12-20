@@ -12,6 +12,8 @@
 //! - [`audio`]: Audio output (WAV writer)
 //! - [`generation`]: Generation pipeline
 //! - [`cli`]: CLI argument parsing
+//! - [`cache`]: Track caching with LRU eviction
+//! - [`rpc`]: JSON-RPC server for daemon mode
 //!
 //! # Example
 //!
@@ -48,11 +50,13 @@
 //! ```
 
 pub mod audio;
+pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod error;
 pub mod generation;
 pub mod models;
+pub mod rpc;
 pub mod types;
 
 // Re-export commonly used types at crate root for convenience

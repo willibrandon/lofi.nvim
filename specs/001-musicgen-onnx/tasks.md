@@ -116,36 +116,36 @@ Based on plan.md structure:
 
 ### Model Download (FR-024 through FR-027)
 
-- [ ] T028 [US1] Create model downloader with download_model(url, dest, progress_callback) using reqwest streaming in daemon/src/models/downloader.rs
-- [ ] T029 [US1] Create model existence check with check_models(model_dir) -> Result<(), MissingModels> in daemon/src/models/loader.rs
-- [ ] T030 [US1] Add download_all_models(model_dir, consent, progress_callback) orchestrating 6 model files from HuggingFace gabotechs/music_gen in daemon/src/models/downloader.rs
+- [x] T028 [US1] Create model downloader with download_model(url, dest, progress_callback) using reqwest streaming in daemon/src/models/downloader.rs
+- [x] T029 [US1] Create model existence check with check_models(model_dir) -> Result<(), MissingModels> in daemon/src/models/loader.rs
+- [x] T030 [US1] Add download_all_models(model_dir, consent, progress_callback) orchestrating 6 model files from HuggingFace gabotechs/music_gen in daemon/src/models/downloader.rs
 
 ### Cache Management
 
-- [ ] T031 [US1] [P] Create cache module with Cache struct, get(track_id), put(track), contains(track_id), evict_lru() in daemon/src/cache/tracks.rs
-- [ ] T032 [US1] Create cache module re-exporting tracks in daemon/src/cache/mod.rs
+- [x] T031 [US1] [P] Create cache module with Cache struct, get(track_id), put(track), contains(track_id), evict_lru() in daemon/src/cache/tracks.rs
+- [x] T032 [US1] Create cache module re-exporting tracks in daemon/src/cache/mod.rs
 
 ### JSON-RPC Types
 
-- [ ] T033 [US1] [P] Create GenerateRequest struct with prompt, duration_sec, seed, priority per contracts/generate.json in daemon/src/rpc/types.rs
-- [ ] T034 [US1] [P] Create GenerateResponse struct with track_id, status, position, seed per contracts/generate.json in daemon/src/rpc/types.rs
-- [ ] T035 [US1] [P] Create GenerationCompleteNotification struct with track_id, path, duration_sec, sample_rate, prompt, seed, generation_time_sec, model_version per contracts/notifications.json in daemon/src/rpc/types.rs
-- [ ] T036 [US1] [P] Create JsonRpcError struct with code, message, data per contracts/errors.json in daemon/src/rpc/types.rs
+- [x] T033 [US1] [P] Create GenerateRequest struct with prompt, duration_sec, seed, priority per contracts/generate.json in daemon/src/rpc/types.rs
+- [x] T034 [US1] [P] Create GenerateResponse struct with track_id, status, position, seed per contracts/generate.json in daemon/src/rpc/types.rs
+- [x] T035 [US1] [P] Create GenerationCompleteNotification struct with track_id, path, duration_sec, sample_rate, prompt, seed, generation_time_sec, model_version per contracts/notifications.json in daemon/src/rpc/types.rs
+- [x] T036 [US1] [P] Create JsonRpcError struct with code, message, data per contracts/errors.json in daemon/src/rpc/types.rs
 
 ### Daemon Mode
 
-- [ ] T037 [US1] Create JSON-RPC server reading from stdin, writing to stdout, dispatching methods in daemon/src/rpc/server.rs
-- [ ] T038 [US1] Create generate method handler validating request, computing track_id, triggering generation in daemon/src/rpc/methods.rs
-- [ ] T039 [US1] Create rpc module re-exporting server, methods, types in daemon/src/rpc/mod.rs
-- [ ] T040 [US1] Update main.rs to detect daemon mode (no CLI args) vs CLI mode, start JSON-RPC server in daemon mode in daemon/src/main.rs
-- [ ] T041 [US1] Update lib.rs to export rpc, cache modules in daemon/src/lib.rs
+- [x] T037 [US1] Create JSON-RPC server reading from stdin, writing to stdout, dispatching methods in daemon/src/rpc/server.rs
+- [x] T038 [US1] Create generate method handler validating request, computing track_id, triggering generation in daemon/src/rpc/methods.rs
+- [x] T039 [US1] Create rpc module re-exporting server, methods, types in daemon/src/rpc/mod.rs
+- [x] T040 [US1] Update main.rs to detect daemon mode (no CLI args) vs CLI mode, start JSON-RPC server in daemon mode in daemon/src/main.rs
+- [x] T041 [US1] Update lib.rs to export rpc, cache modules in daemon/src/lib.rs
 
 ### User Story 1 Verification (MANDATORY - Principle VI)
 
-- [ ] V014 [VERIFY] Run `cargo build --release` - must succeed with zero errors
-- [ ] V015 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
-- [ ] V016 [VERIFY] Confirm all US1 files are imported and used
-- [ ] V017 [VERIFY] Test daemon mode: echo generate request to stdin, verify response with track_id
+- [x] V014 [VERIFY] Run `cargo build --release` - must succeed with zero errors
+- [x] V015 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/` - must return empty
+- [x] V016 [VERIFY] Confirm all US1 files are imported and used
+- [x] V017 [VERIFY] Test daemon mode: echo generate request to stdin, verify response with track_id
 
 ---
 

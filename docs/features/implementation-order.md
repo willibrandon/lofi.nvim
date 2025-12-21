@@ -2,7 +2,7 @@
 
 ## Phase 0: Feasibility
 1. ai-generation.md (Go/No-Go checkpoint - standalone Rust CLI proof-of-concept)
-2. audio-continuation.md
+2. ace-step.md
 
 ## Phase 1: Procedural MVP
 3. daemon-lifecycle.md

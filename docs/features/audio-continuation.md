@@ -2,9 +2,9 @@
 
 ## Context
 
-MusicGen's position embeddings limit generation to ~40 seconds (2048 tokens at 50Hz). This feature enables generation of longer tracks (up to 10 minutes) using a sliding window approach that conditions each chunk on the previous audio.
+MusicGen's max_duration limits generation to 30 seconds per chunk. This feature enables generation of longer tracks (up to 10 minutes) using a sliding window approach that conditions each chunk on the previous audio.
 
-**Reference**: Meta's AudioCraft uses this technique - generate 30s windows, slide by 10s, keep 20s of overlap as audio conditioning.
+**Reference**: Meta's AudioCraft uses this technique - generate 30s windows, slide by 18s (default extend_stride), keep 12s of overlap as audio conditioning. Verified working: 60s generation in 48s on RTX 4090.
 
 **Local Reference**: `../audiocraft` (clone https://github.com/facebookresearch/audiocraft)
 
@@ -23,11 +23,11 @@ MusicGen's position embeddings limit generation to ~40 seconds (2048 tokens at 5
 
 **Approach (proven by AudioCraft):**
 1. Generate first 30s chunk from text prompt only
-2. Encode last 20s of audio → codec tokens via encodec_encode
+2. Encode last 12s of audio → codec tokens via encodec_encode
 3. Concatenate conditioning tokens with text embeddings
-4. Generate next 30s chunk (only last 10s is new audio)
+4. Generate next 30s chunk (last 18s is new audio, 12s is overlap)
 5. Repeat until target duration reached
-6. Stitch non-overlapping 10s segments
+6. Stitch non-overlapping 18s segments
 
 **Phase 0 Go/No-Go Checkpoint:**
 Before full implementation:
@@ -39,25 +39,25 @@ Before full implementation:
 
 ### Duration extension
 - Accept duration_sec up to 600 (10 minutes)
-- Automatically chunk into 30s windows with 20s overlap
-- Each chunk generates 10s of new audio
-- Total chunks = ceil((duration - 30) / 10) + 1
+- Automatically chunk into 30s windows with 12s overlap
+- Each chunk generates 18s of new audio (extend_stride=18)
+- Total chunks = ceil((duration - 30) / 18) + 1
 
 ### Audio conditioning
-- Encode last 20s of previous chunk to codec tokens
+- Encode last 12s of previous chunk to codec tokens
 - Pass tokens as decoder conditioning alongside text embeddings
 - Maintain consistent prompt across all chunks
 - Use same seed base with chunk index for reproducibility
 
 ### Seamless stitching
-- Extract only new 10s from each chunk (positions 20-30s)
+- Extract only new 18s from each chunk (positions 12-30s)
 - First chunk uses full 30s
 - No crossfade needed - model generates continuous audio
 - Output single WAV file
 
 ### Progress reporting
 - Report overall progress across all chunks
-- Percent = (completed_chunks * 10 + current_chunk_progress) / total_new_seconds
+- Percent = (completed_chunks * 18 + current_chunk_progress) / total_new_seconds
 - ETA accounts for all remaining chunks
 
 ## Model files
@@ -65,24 +65,32 @@ Before full implementation:
 ### New model required
 | File | Size | Source |
 |------|------|--------|
-| `encodec_encode.onnx` | ~60MB | Export from AudioCraft PyTorch |
+| `encodec_encode.onnx` | ~60MB | Export from AudioCraft PyTorch, host on HuggingFace |
+
+**Note**: The existing `gabotechs/music_gen` repo only has `encodec_decode.onnx`. The encoder must be exported and hosted separately (e.g., on your own HuggingFace repo) for on-demand download like the other models.
 
 ### Export procedure
 ```python
-from audiocraft.models import MusicGen
 import torch
+from audiocraft.models import MusicGen
 
 model = MusicGen.get_pretrained('facebook/musicgen-small')
 encoder = model.compression_model.encoder
 
-# Export to ONNX
+# 12 seconds at 32kHz (the overlap duration to encode)
+dummy_audio = torch.randn(1, 1, 32000 * 12)
+
 torch.onnx.export(
     encoder,
-    dummy_audio_input,
+    dummy_audio,
     "encodec_encode.onnx",
     input_names=["audio"],
     output_names=["codes"],
-    dynamic_axes={"audio": {2: "samples"}, "codes": {2: "frames"}}
+    dynamic_axes={
+        "audio": {0: "batch", 2: "samples"},
+        "codes": {0: "batch", 2: "frames"}
+    },
+    opset_version=14
 )
 ```
 
@@ -103,8 +111,8 @@ torch.onnx.export(
   "track_id": "a1b2c3d4",
   "percent": 45,
   "chunk_current": 3,
-  "chunk_total": 10,
-  "eta_sec": 180
+  "chunk_total": 6,
+  "eta_sec": 72
 }}
 ```
 
@@ -127,6 +135,6 @@ lofi.generate({prompt = "...", duration_sec = 120}, callback)
 ## Success criteria
 - 120s track generates successfully with audible continuity
 - No clicks, pops, or tonal shifts at chunk boundaries
-- Generation time scales linearly: ~25s per 10s of audio
+- Generation time scales linearly: ~8s per 10s of audio (measured on RTX 4090)
 - Same seed produces identical output across chunks
 - Memory usage stays constant regardless of total duration

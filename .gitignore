@@ -31,3 +31,4 @@ Cargo.lock
 # Test outputs
 test_output.wav
 test.wav
+.claude/settings.local.json

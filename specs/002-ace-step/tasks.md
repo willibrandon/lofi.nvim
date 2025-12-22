@@ -195,20 +195,20 @@ Based on plan.md project structure:
 
 ### Implementation for User Story 5
 
-- [ ] T064 [P] [US5] Add inference_steps parameter to GenerateParams in daemon/src/rpc/types.rs
-- [ ] T065 [P] [US5] Add scheduler parameter to GenerateParams in daemon/src/rpc/types.rs
-- [ ] T066 [P] [US5] Add guidance_scale parameter to GenerateParams in daemon/src/rpc/types.rs
-- [ ] T067 [US5] Implement HeunScheduler in daemon/src/models/ace_step/scheduler.rs
-- [ ] T068 [US5] Implement PingPongScheduler in daemon/src/models/ace_step/scheduler.rs
-- [ ] T069 [US5] Create SchedulerType enum and factory function in daemon/src/models/ace_step/scheduler.rs
-- [ ] T070 [US5] Validate parameter ranges in handle_generate() in daemon/src/rpc/methods.rs
-- [ ] T071 [US5] Update Lua generate() to accept inference_steps, scheduler, guidance_scale in lua/lofi/init.lua
+- [X] T064 [P] [US5] Add inference_steps parameter to GenerateParams in daemon/src/rpc/types.rs
+- [X] T065 [P] [US5] Add scheduler parameter to GenerateParams in daemon/src/rpc/types.rs
+- [X] T066 [P] [US5] Add guidance_scale parameter to GenerateParams in daemon/src/rpc/types.rs
+- [X] T067 [US5] Implement HeunScheduler in daemon/src/models/ace_step/scheduler.rs
+- [X] T068 [US5] Implement PingPongScheduler in daemon/src/models/ace_step/scheduler.rs
+- [X] T069 [US5] Create SchedulerType enum and factory function in daemon/src/models/ace_step/scheduler.rs
+- [X] T070 [US5] Validate parameter ranges in handle_generate() in daemon/src/rpc/methods.rs
+- [X] T071 [US5] Update Lua generate() to accept inference_steps, scheduler, guidance_scale in lua/lofi/init.lua
 
 ### User Story 5 Verification (MANDATORY - Principle VI)
 
-- [ ] V024 [VERIFY] Run `cargo build` in daemon/ - must succeed with zero errors
-- [ ] V025 [VERIFY] Invalid parameters rejected with clear error messages
-- [ ] V026 [VERIFY] Heun and PingPong schedulers produce valid output
+- [X] V024 [VERIFY] Run `cargo build` in daemon/ - must succeed with zero errors
+- [X] V025 [VERIFY] Invalid parameters rejected with clear error messages
+- [X] V026 [VERIFY] Heun and PingPong schedulers produce valid output
 
 ---
 

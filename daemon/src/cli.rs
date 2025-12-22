@@ -17,6 +17,18 @@ pub enum BackendArg {
     AceStep,
 }
 
+/// Available scheduler types for ACE-Step diffusion.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub enum SchedulerArg {
+    /// Euler: Fast, deterministic ODE solver (1 model eval per step)
+    #[default]
+    Euler,
+    /// Heun: More accurate 2nd-order solver (2 model evals per step, 2x slower)
+    Heun,
+    /// PingPong: Stochastic SDE solver (best quality, adds noise each step)
+    Pingpong,
+}
+
 /// Number of token frames generated per second of audio.
 /// MusicGen generates approximately 50 tokens per second.
 pub const TOKENS_PER_SECOND: usize = 50;
@@ -54,6 +66,10 @@ pub struct Cli {
     /// Number of diffusion steps (ACE-Step only, default 60)
     #[arg(long, default_value = "60")]
     pub steps: u32,
+
+    /// Scheduler type for diffusion (ACE-Step only)
+    #[arg(long, value_enum, default_value_t = SchedulerArg::Euler)]
+    pub scheduler: SchedulerArg,
 
     /// Guidance scale for classifier-free guidance (ACE-Step only, default 7.0)
     #[arg(long, default_value = "7.0")]
@@ -161,6 +177,7 @@ mod tests {
             seed: None,
             backend: BackendArg::Musicgen,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: false,
         };
@@ -177,6 +194,7 @@ mod tests {
             seed: None,
             backend: BackendArg::Musicgen,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: false,
         };
@@ -191,6 +209,7 @@ mod tests {
             seed: None,
             backend: BackendArg::Musicgen,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: true,
         };
@@ -208,6 +227,7 @@ mod tests {
             seed: None,
             backend: BackendArg::Musicgen,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: false,
         };
@@ -224,6 +244,7 @@ mod tests {
             seed: Some(42),
             backend: BackendArg::AceStep,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: false,
         };
@@ -237,10 +258,16 @@ mod tests {
             seed: None,
             backend: BackendArg::Musicgen,
             steps: 60,
+            scheduler: SchedulerArg::Euler,
             guidance: 7.0,
             daemon: false,
         };
         assert!(!musicgen.is_ace_step());
+    }
+
+    #[test]
+    fn scheduler_options() {
+        assert_eq!(SchedulerArg::Euler, SchedulerArg::default());
     }
 
     #[test]

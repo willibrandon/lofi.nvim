@@ -99,19 +99,34 @@ where
         frame_length, params.duration_sec
     );
 
-    // Step 5: Create scheduler
-    let mut scheduler = create_scheduler(params.scheduler, params.inference_steps);
+    // Step 5: Create scheduler (pass seed for PingPong's stochastic noise)
+    let mut scheduler = create_scheduler(params.scheduler, params.inference_steps, params.seed);
 
     // Step 6: Initialize latent with random noise
     let initial_sigma = scheduler.sigma();
     let mut latent = initialize_latent(1, frame_length, initial_sigma, params.seed);
 
-    eprintln!("Running {} diffusion steps...", params.inference_steps);
+    // For Heun scheduler, we need to track user-visible steps differently
+    // Heun does 2 model evaluations per user step, so internal steps != user steps
+    let user_total_steps = scheduler.user_num_steps() as usize;
+
+    eprintln!(
+        "Running {} diffusion steps (scheduler: {})...",
+        user_total_steps,
+        params.scheduler.as_str()
+    );
 
     // Step 7: Diffusion loop
-    let total_steps = params.inference_steps as usize;
-    for step in 0..total_steps {
-        on_progress(step, total_steps);
+    // Loop over internal steps (which may be 2x user steps for Heun)
+    let mut last_user_step = 0;
+    while !scheduler.is_done() {
+        let current_user_step = scheduler.user_step();
+
+        // Report progress at user-step granularity
+        if current_user_step != last_user_step || last_user_step == 0 {
+            on_progress(current_user_step, user_total_steps);
+            last_user_step = current_user_step;
+        }
 
         let timestep = scheduler.timestep();
 
@@ -137,13 +152,15 @@ where
         // Update latent with scheduler step
         latent = scheduler.step(&latent, &guided_noise);
 
-        if step % 10 == 0 || step == total_steps - 1 {
-            eprintln!("Step {}/{}", step + 1, total_steps);
+        // Log progress at regular intervals (based on user steps)
+        let user_step = scheduler.user_step();
+        if user_step % 10 == 0 || scheduler.is_done() {
+            eprintln!("Step {}/{}", user_step, user_total_steps);
         }
     }
 
     // Final progress callback
-    on_progress(total_steps, total_steps);
+    on_progress(user_total_steps, user_total_steps);
 
     eprintln!("Decoding latent to mel-spectrogram...");
 

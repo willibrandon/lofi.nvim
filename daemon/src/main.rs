@@ -7,7 +7,7 @@
 use std::time::Instant;
 
 use lofi_daemon::audio::write_wav;
-use lofi_daemon::cli::{BackendArg, Cli};
+use lofi_daemon::cli::{BackendArg, Cli, SchedulerArg};
 use lofi_daemon::config::DaemonConfig;
 use lofi_daemon::error::Result;
 use lofi_daemon::generation::{generate_ace_step, generate_with_progress};
@@ -112,11 +112,19 @@ fn run_ace_step_cli(cli: &Cli, prompt: &str, output_path: &std::path::Path) -> R
     let model_dir = cli.ace_step_model_directory();
     let seed = cli.seed.unwrap_or(42);
 
+    // Convert scheduler arg to string
+    let scheduler_str = match cli.scheduler {
+        SchedulerArg::Euler => "euler",
+        SchedulerArg::Heun => "heun",
+        SchedulerArg::Pingpong => "pingpong",
+    };
+
     eprintln!("=== lofi-daemon ACE-Step CLI ===");
     eprintln!("Backend: ACE-Step (48kHz, 5-240s)");
     eprintln!("Prompt: \"{}\"", prompt);
     eprintln!("Duration: {}s", cli.duration);
     eprintln!("Steps: {}", cli.steps);
+    eprintln!("Scheduler: {}", scheduler_str);
     eprintln!("Guidance: {:.1}", cli.guidance);
     eprintln!("Seed: {}", seed);
     eprintln!("Output: {}", output_path.display());
@@ -142,7 +150,7 @@ fn run_ace_step_cli(cli: &Cli, prompt: &str, output_path: &std::path::Path) -> R
         cli.duration as f32,
         seed,
         cli.steps,
-        "euler",
+        scheduler_str,
         cli.guidance,
         |step, total| {
             if step % 5 == 0 || step == total {

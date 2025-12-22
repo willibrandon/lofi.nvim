@@ -49,6 +49,9 @@ rand = "0.8"
 # ChaCha RNG for reproducible generation
 rand_chacha = "0.3"
 
+# Random distributions (StandardNormal for scheduler noise)
+rand_distr = "0.4"
+
 # Audio resampling (44.1kHz -> 48kHz)
 rubato = "0.15"
 

@@ -31,4 +31,7 @@ pub use generate::{generate, generate_with_progress, GenerationParams};
 pub use guidance::{apply_cfg, DEFAULT_GUIDANCE_SCALE, MAX_GUIDANCE_SCALE, MIN_GUIDANCE_SCALE};
 pub use latent::{calculate_frame_length, estimate_duration, initialize_latent};
 pub use models::{check_models, load_session, AceStepModels, MODEL_URLS, REQUIRED_FILES};
-pub use scheduler::{create_scheduler, EulerScheduler, SchedulerType};
+pub use scheduler::{
+    create_scheduler, DynScheduler, EulerScheduler, HeunScheduler, PingPongScheduler, Scheduler,
+    SchedulerType,
+};

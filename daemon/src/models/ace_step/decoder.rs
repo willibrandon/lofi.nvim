@@ -58,6 +58,7 @@ impl DcaeDecoder {
     /// Decodes latent representation to mel-spectrogram.
     ///
     /// For latents longer than 128 frames, decodes in chunks and concatenates.
+    /// For latents shorter than 128 frames, pads to 128 and trims output.
     ///
     /// # Arguments
     ///
@@ -69,9 +70,22 @@ impl DcaeDecoder {
     pub fn decode(&mut self, latent: &Array4<f32>) -> Result<Array3<f32>> {
         let frame_length = latent.shape()[3];
 
-        if frame_length <= MAX_DECODE_FRAMES {
-            // Single chunk - decode directly
+        if frame_length == MAX_DECODE_FRAMES {
+            // Exact size - decode directly
             self.decode_chunk(latent)
+        } else if frame_length < MAX_DECODE_FRAMES {
+            // Pad to 128 frames, decode, then trim output
+            let mut padded = Array4::<f32>::zeros((1, 8, 16, MAX_DECODE_FRAMES));
+            padded.slice_mut(s![.., .., .., ..frame_length])
+                .assign(latent);
+
+            let mel = self.decode_chunk(&padded)?;
+
+            // Trim mel output proportionally
+            let mel_frames = mel.shape()[2];
+            let expected_frames = (mel_frames * frame_length) / MAX_DECODE_FRAMES;
+            let trimmed = mel.slice(s![.., .., ..expected_frames]).to_owned();
+            Ok(trimmed)
         } else {
             // Multiple chunks needed
             let num_chunks = (frame_length + MAX_DECODE_FRAMES - 1) / MAX_DECODE_FRAMES;

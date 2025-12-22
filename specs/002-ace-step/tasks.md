@@ -122,21 +122,21 @@ Based on plan.md project structure:
 
 ### Implementation for User Story 2
 
-- [ ] T044 [US2] Implement LoadedModels::generate() dispatch in daemon/src/models/backend.rs
-- [ ] T045 [US2] Add backend parameter to GenerateParams in daemon/src/rpc/types.rs
-- [ ] T046 [US2] Update handle_generate() to select backend in daemon/src/rpc/methods.rs
-- [ ] T047 [US2] Add get_backends RPC method in daemon/src/rpc/methods.rs
-- [ ] T048 [US2] Implement BackendInfo struct with status and capabilities in daemon/src/rpc/types.rs
-- [ ] T049 [US2] Update daemon startup to detect available backends in daemon/src/main.rs
-- [ ] T050 [US2] Add backend field to Lua config in lua/lofi/init.lua
-- [ ] T051 [US2] Update Lua generate() to pass backend parameter in lua/lofi/init.lua
+- [X] T044 [US2] Implement LoadedModels::generate() dispatch in daemon/src/models/backend.rs
+- [X] T045 [US2] Add backend parameter to GenerateParams in daemon/src/rpc/types.rs
+- [X] T046 [US2] Update handle_generate() to select backend in daemon/src/rpc/methods.rs
+- [X] T047 [US2] Add get_backends RPC method in daemon/src/rpc/methods.rs
+- [X] T048 [US2] Implement BackendInfo struct with status and capabilities in daemon/src/rpc/types.rs
+- [X] T049 [US2] Update daemon startup to detect available backends in daemon/src/main.rs
+- [X] T050 [US2] Add backend field to Lua config in lua/lofi/init.lua
+- [X] T051 [US2] Update Lua generate() to pass backend parameter in lua/lofi/init.lua
 
 ### User Story 2 Verification (MANDATORY - Principle VI)
 
-- [ ] V013 [VERIFY] Run `cargo build` in daemon/ - must succeed with zero errors
-- [ ] V014 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/rpc/` - must return empty
-- [ ] V015 [VERIFY] Lua config accepts backend = "ace_step" or "musicgen"
-- [ ] V016 [VERIFY] get_backends RPC returns correct status for both backends
+- [X] V013 [VERIFY] Run `cargo build` in daemon/ - must succeed with zero errors
+- [X] V014 [VERIFY] Run `grep -rn "TODO\|FIXME" daemon/src/rpc/` - must return empty
+- [X] V015 [VERIFY] Lua config accepts backend = "ace_step" or "musicgen"
+- [X] V016 [VERIFY] get_backends RPC returns correct status for both backends
 
 ---
 

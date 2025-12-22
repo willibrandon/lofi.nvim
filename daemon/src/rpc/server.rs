@@ -10,7 +10,8 @@ use crate::cache::TrackCache;
 use crate::config::DaemonConfig;
 use crate::error::Result;
 use crate::generation::GenerationQueue;
-use crate::models::MusicGenModels;
+use crate::models::{Backend, LoadedModels};
+use crate::rpc::types::BackendStatus;
 
 use super::methods::handle_request;
 use super::types::{JsonRpcError, JsonRpcErrorResponse, JsonRpcNotification, JsonRpcRequest};
@@ -18,7 +19,7 @@ use super::types::{JsonRpcError, JsonRpcErrorResponse, JsonRpcNotification, Json
 /// State shared across all request handlers.
 pub struct ServerState {
     /// Loaded models for generation.
-    pub models: Option<MusicGenModels>,
+    pub models: LoadedModels,
     /// Track cache.
     pub cache: TrackCache,
     /// Daemon configuration.
@@ -27,23 +28,62 @@ pub struct ServerState {
     pub queue: GenerationQueue,
     /// Flag to signal server shutdown.
     shutdown: Arc<AtomicBool>,
+    /// Status of each backend.
+    pub backend_status: BackendStatuses,
+}
+
+/// Status tracking for each backend.
+pub struct BackendStatuses {
+    pub musicgen: BackendStatus,
+    pub ace_step: BackendStatus,
+}
+
+impl Default for BackendStatuses {
+    fn default() -> Self {
+        Self {
+            musicgen: BackendStatus::NotInstalled,
+            ace_step: BackendStatus::NotInstalled,
+        }
+    }
+}
+
+impl BackendStatuses {
+    /// Gets the status for a specific backend.
+    pub fn get(&self, backend: Backend) -> BackendStatus {
+        match backend {
+            Backend::MusicGen => self.musicgen,
+            Backend::AceStep => self.ace_step,
+        }
+    }
+
+    /// Sets the status for a specific backend.
+    pub fn set(&mut self, backend: Backend, status: BackendStatus) {
+        match backend {
+            Backend::MusicGen => self.musicgen = status,
+            Backend::AceStep => self.ace_step = status,
+        }
+    }
 }
 
 impl ServerState {
     /// Creates new server state.
     pub fn new(config: DaemonConfig) -> Self {
         Self {
-            models: None,
+            models: LoadedModels::None,
             cache: TrackCache::new(),
             config,
             queue: GenerationQueue::new(),
             shutdown: Arc::new(AtomicBool::new(false)),
+            backend_status: BackendStatuses::default(),
         }
     }
 
     /// Sets the loaded models.
-    pub fn set_models(&mut self, models: MusicGenModels) {
-        self.models = Some(models);
+    pub fn set_models(&mut self, models: LoadedModels) {
+        if let Some(backend) = models.backend() {
+            self.backend_status.set(backend, BackendStatus::Ready);
+        }
+        self.models = models;
     }
 
     /// Signals the server to shut down.
@@ -54,6 +94,11 @@ impl ServerState {
     /// Returns true if shutdown has been requested.
     pub fn is_shutdown(&self) -> bool {
         self.shutdown.load(Ordering::SeqCst)
+    }
+
+    /// Returns true if a specific backend is ready for generation.
+    pub fn is_backend_ready(&self, backend: Backend) -> bool {
+        self.backend_status.get(backend) == BackendStatus::Ready
     }
 }
 
@@ -204,5 +249,16 @@ mod tests {
         assert!(response.is_some());
         let response = response.unwrap();
         assert!(response.contains("-32601")); // Method not found
+    }
+
+    #[test]
+    fn backend_statuses() {
+        let mut statuses = BackendStatuses::default();
+        assert_eq!(statuses.get(Backend::MusicGen), BackendStatus::NotInstalled);
+        assert_eq!(statuses.get(Backend::AceStep), BackendStatus::NotInstalled);
+
+        statuses.set(Backend::MusicGen, BackendStatus::Ready);
+        assert_eq!(statuses.get(Backend::MusicGen), BackendStatus::Ready);
+        assert_eq!(statuses.get(Backend::AceStep), BackendStatus::NotInstalled);
     }
 }

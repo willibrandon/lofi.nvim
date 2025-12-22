@@ -265,12 +265,12 @@ impl Default for DaemonConfig {
 /// Returns the platform-specific default model storage path.
 ///
 /// Uses the `directories` crate to find appropriate locations:
-/// - macOS: ~/Library/Application Support/lofi-daemon/models
-/// - Linux: ~/.local/share/lofi-daemon/models
-/// - Windows: C:\Users\<user>\AppData\Local\lofi-daemon\models
+/// - macOS: ~/Library/Caches/lofi.nvim/musicgen
+/// - Linux: ~/.cache/lofi.nvim/musicgen
+/// - Windows: C:\Users\<user>\AppData\Local\lofi.nvim\cache\musicgen
 fn default_model_path() -> PathBuf {
-    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi-daemon") {
-        proj_dirs.data_dir().join("models")
+    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi.nvim") {
+        proj_dirs.cache_dir().join("musicgen")
     } else {
         // Fallback to current directory
         PathBuf::from("./models")
@@ -280,11 +280,11 @@ fn default_model_path() -> PathBuf {
 /// Returns the platform-specific default cache storage path.
 ///
 /// Uses the `directories` crate to find appropriate locations:
-/// - macOS: ~/Library/Caches/lofi-daemon/tracks
-/// - Linux: ~/.cache/lofi-daemon/tracks
-/// - Windows: C:\Users\<user>\AppData\Local\lofi-daemon\cache\tracks
+/// - macOS: ~/Library/Caches/lofi.nvim/tracks
+/// - Linux: ~/.cache/lofi.nvim/tracks
+/// - Windows: C:\Users\<user>\AppData\Local\lofi.nvim\cache\tracks
 fn default_cache_path() -> PathBuf {
-    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi-daemon") {
+    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi.nvim") {
         proj_dirs.cache_dir().join("tracks")
     } else {
         // Fallback to current directory
@@ -295,12 +295,12 @@ fn default_cache_path() -> PathBuf {
 /// Returns the platform-specific default ACE-Step model storage path.
 ///
 /// Uses the `directories` crate to find appropriate locations:
-/// - macOS: ~/Library/Application Support/lofi-daemon/ace-step
-/// - Linux: ~/.local/share/lofi-daemon/ace-step
-/// - Windows: C:\Users\<user>\AppData\Local\lofi-daemon\ace-step
+/// - macOS: ~/Library/Caches/lofi.nvim/ace-step
+/// - Linux: ~/.cache/lofi.nvim/ace-step
+/// - Windows: C:\Users\<user>\AppData\Local\lofi.nvim\cache\ace-step
 fn default_ace_step_model_path() -> PathBuf {
-    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi-daemon") {
-        proj_dirs.data_dir().join("ace-step")
+    if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "lofi.nvim") {
+        proj_dirs.cache_dir().join("ace-step")
     } else {
         // Fallback to current directory
         PathBuf::from("./ace-step")

@@ -175,13 +175,38 @@ fn run_ace_step_cli(cli: &Cli, prompt: &str, output_path: &std::path::Path) -> R
 
 /// Runs the daemon mode (JSON-RPC server).
 fn run_daemon_mode() -> Result<()> {
+    use lofi_daemon::models::{check_backend_available, Backend};
+
     eprintln!("=== lofi-daemon JSON-RPC Server ===");
     eprintln!("Reading from stdin, writing to stdout.");
     eprintln!("Send JSON-RPC requests to control the daemon.");
     eprintln!();
 
     let config = DaemonConfig::default();
-    let state = ServerState::new(config);
+    let state = ServerState::new(config.clone());
+
+    // Detect available backends at startup
+    // Note: BackendStatus starts as NotInstalled by default
+    // We check if model files exist and update status accordingly
+    let musicgen_available = check_backend_available(Backend::MusicGen, &config.effective_model_path());
+    let ace_step_available = check_backend_available(Backend::AceStep, &config.effective_ace_step_model_path());
+
+    // If models are available (downloaded), status becomes "ready to load"
+    // which we represent as NotInstalled until they're actually loaded
+    if musicgen_available {
+        eprintln!("MusicGen backend: available (models found, not loaded)");
+    } else {
+        eprintln!("MusicGen backend: not installed (download models first)");
+    }
+
+    if ace_step_available {
+        eprintln!("ACE-Step backend: available (models found, not loaded)");
+    } else {
+        eprintln!("ACE-Step backend: not installed (download models first)");
+    }
+
+    eprintln!("Default backend: {}", config.default_backend.as_str());
+    eprintln!();
 
     run_server(state)
 }

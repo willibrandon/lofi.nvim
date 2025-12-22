@@ -4,6 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::models::Backend;
+
 /// JSON-RPC version constant.
 pub const JSONRPC_VERSION: &str = "2.0";
 
@@ -222,6 +224,99 @@ impl JsonRpcError {
             }),
         }
     }
+
+    /// Creates an invalid backend error (-32007).
+    pub fn invalid_backend(backend: impl Into<String>) -> Self {
+        Self {
+            code: -32007,
+            message: "Invalid backend".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "INVALID_BACKEND".to_string(),
+                details: Some(format!(
+                    "Unknown backend: '{}'. Valid options: 'musicgen', 'ace_step'",
+                    backend.into()
+                )),
+            }),
+        }
+    }
+
+    /// Creates a backend not installed error (-32008).
+    pub fn backend_not_installed(backend: &Backend) -> Self {
+        Self {
+            code: -32008,
+            message: "Backend not installed".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "BACKEND_NOT_INSTALLED".to_string(),
+                details: Some(format!(
+                    "Backend '{}' is not installed. Use download_backend to download it.",
+                    backend.as_str()
+                )),
+            }),
+        }
+    }
+
+    /// Creates an invalid duration error for a specific backend (-32005).
+    pub fn invalid_duration_for_backend(duration: i64, backend: Backend) -> Self {
+        Self {
+            code: -32005,
+            message: "Invalid duration".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "INVALID_DURATION".to_string(),
+                details: Some(format!(
+                    "Duration {} is outside valid range of {}-{} seconds for {} backend",
+                    duration,
+                    backend.min_duration_sec(),
+                    backend.max_duration_sec(),
+                    backend.as_str()
+                )),
+            }),
+        }
+    }
+
+    /// Creates an invalid inference steps error (-32009).
+    pub fn invalid_inference_steps(steps: u32) -> Self {
+        Self {
+            code: -32009,
+            message: "Invalid inference steps".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "INVALID_INFERENCE_STEPS".to_string(),
+                details: Some(format!(
+                    "Inference steps {} is outside valid range of 1-200",
+                    steps
+                )),
+            }),
+        }
+    }
+
+    /// Creates an invalid guidance scale error (-32010).
+    pub fn invalid_guidance_scale(scale: f32) -> Self {
+        Self {
+            code: -32010,
+            message: "Invalid guidance scale".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "INVALID_GUIDANCE_SCALE".to_string(),
+                details: Some(format!(
+                    "Guidance scale {} is outside valid range of 1.0-30.0",
+                    scale
+                )),
+            }),
+        }
+    }
+
+    /// Creates an invalid scheduler error (-32011).
+    pub fn invalid_scheduler(scheduler: impl Into<String>) -> Self {
+        Self {
+            code: -32011,
+            message: "Invalid scheduler".to_string(),
+            data: Some(JsonRpcErrorData {
+                error_code: "INVALID_SCHEDULER".to_string(),
+                details: Some(format!(
+                    "Unknown scheduler: '{}'. Valid options: 'euler', 'heun', 'pingpong'",
+                    scheduler.into()
+                )),
+            }),
+        }
+    }
 }
 
 // ============================================================================
@@ -243,7 +338,7 @@ pub struct GenerateParams {
     /// Text description of desired music.
     pub prompt: String,
 
-    /// Duration of audio to generate in seconds (5-120).
+    /// Duration of audio to generate in seconds (5-120 for MusicGen, 5-240 for ACE-Step).
     #[serde(default = "default_duration")]
     pub duration_sec: u32,
 
@@ -253,6 +348,18 @@ pub struct GenerateParams {
     /// Queue priority.
     #[serde(default)]
     pub priority: Priority,
+
+    /// Backend to use for generation. Defaults to config default_backend.
+    pub backend: Option<String>,
+
+    /// ACE-Step only: Number of diffusion inference steps (1-200, default 60).
+    pub inference_steps: Option<u32>,
+
+    /// ACE-Step only: Scheduler type ("euler", "heun", "pingpong", default "euler").
+    pub scheduler: Option<String>,
+
+    /// ACE-Step only: Classifier-free guidance scale (1.0-30.0, default 15.0).
+    pub guidance_scale: Option<f32>,
 }
 
 fn default_duration() -> u32 {
@@ -260,8 +367,17 @@ fn default_duration() -> u32 {
 }
 
 impl GenerateParams {
-    /// Validates the request parameters.
-    pub fn validate(&self) -> Result<(), JsonRpcError> {
+    /// Parses the backend parameter, returning the default if not specified.
+    pub fn resolve_backend(&self, default: Backend) -> Result<Backend, JsonRpcError> {
+        match &self.backend {
+            Some(backend_str) => Backend::parse(backend_str)
+                .ok_or_else(|| JsonRpcError::invalid_backend(backend_str)),
+            None => Ok(default),
+        }
+    }
+
+    /// Validates the request parameters for a specific backend.
+    pub fn validate(&self, backend: Backend) -> Result<(), JsonRpcError> {
         // Check prompt
         if self.prompt.is_empty() {
             return Err(JsonRpcError::invalid_prompt("Prompt cannot be empty"));
@@ -273,9 +389,34 @@ impl GenerateParams {
             )));
         }
 
-        // Check duration
-        if !(5..=120).contains(&self.duration_sec) {
-            return Err(JsonRpcError::invalid_duration(self.duration_sec as i64));
+        // Check duration based on backend
+        let min_duration = backend.min_duration_sec();
+        let max_duration = backend.max_duration_sec();
+        if self.duration_sec < min_duration || self.duration_sec > max_duration {
+            return Err(JsonRpcError::invalid_duration_for_backend(
+                self.duration_sec as i64,
+                backend,
+            ));
+        }
+
+        // Validate ACE-Step specific parameters
+        if backend == Backend::AceStep {
+            if let Some(steps) = self.inference_steps {
+                if steps < 1 || steps > 200 {
+                    return Err(JsonRpcError::invalid_inference_steps(steps));
+                }
+            }
+            if let Some(scale) = self.guidance_scale {
+                if !(1.0..=30.0).contains(&scale) {
+                    return Err(JsonRpcError::invalid_guidance_scale(scale));
+                }
+            }
+            if let Some(ref scheduler) = self.scheduler {
+                let valid_schedulers = ["euler", "heun", "pingpong"];
+                if !valid_schedulers.contains(&scheduler.to_lowercase().as_str()) {
+                    return Err(JsonRpcError::invalid_scheduler(scheduler));
+                }
+            }
         }
 
         Ok(())
@@ -296,6 +437,9 @@ pub struct GenerateResult {
 
     /// Seed that will be used.
     pub seed: u64,
+
+    /// Backend being used for generation.
+    pub backend: String,
 }
 
 /// Status of a generation job.
@@ -375,6 +519,9 @@ pub struct GenerationCompleteParams {
 
     /// Model identifier.
     pub model_version: String,
+
+    /// Backend used for generation.
+    pub backend: String,
 }
 
 /// Notification sent when generation fails.
@@ -409,9 +556,105 @@ pub struct DownloadProgressParams {
     pub files_total: usize,
 }
 
+// ============================================================================
+// get_backends Request/Response
+// ============================================================================
+
+/// Status of a backend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackendStatus {
+    /// Backend is not installed (model weights not downloaded).
+    NotInstalled,
+    /// Backend is currently downloading.
+    Downloading,
+    /// Backend is loading into memory.
+    Loading,
+    /// Backend is ready for generation.
+    Ready,
+    /// Backend encountered an error.
+    Error,
+}
+
+impl Default for BackendStatus {
+    fn default() -> Self {
+        BackendStatus::NotInstalled
+    }
+}
+
+/// Information about a specific backend.
+#[derive(Debug, Clone, Serialize)]
+pub struct BackendInfo {
+    /// Backend type identifier (e.g., "musicgen", "ace_step").
+    #[serde(rename = "type")]
+    pub backend_type: String,
+
+    /// Human-readable name.
+    pub name: String,
+
+    /// Current status.
+    pub status: BackendStatus,
+
+    /// Minimum duration in seconds.
+    pub min_duration_sec: u32,
+
+    /// Maximum duration in seconds.
+    pub max_duration_sec: u32,
+
+    /// Output sample rate in Hz.
+    pub sample_rate: u32,
+
+    /// Model version string (None if not installed).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_version: Option<String>,
+}
+
+impl BackendInfo {
+    /// Creates a BackendInfo for a given backend.
+    pub fn new(backend: Backend, status: BackendStatus, model_version: Option<String>) -> Self {
+        let name = match backend {
+            Backend::MusicGen => "MusicGen-Small".to_string(),
+            Backend::AceStep => "ACE-Step-3.5B".to_string(),
+        };
+
+        Self {
+            backend_type: backend.as_str().to_string(),
+            name,
+            status,
+            min_duration_sec: backend.min_duration_sec(),
+            max_duration_sec: backend.max_duration_sec(),
+            sample_rate: backend.sample_rate(),
+            model_version,
+        }
+    }
+}
+
+/// Response for get_backends request.
+#[derive(Debug, Serialize)]
+pub struct GetBackendsResult {
+    /// List of available backends with their status.
+    pub backends: Vec<BackendInfo>,
+
+    /// Default backend type.
+    pub default_backend: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn make_params(prompt: &str, duration_sec: u32) -> GenerateParams {
+        GenerateParams {
+            prompt: prompt.to_string(),
+            duration_sec,
+            seed: None,
+            priority: Priority::Normal,
+            backend: None,
+            inference_steps: None,
+            scheduler: None,
+            guidance_scale: None,
+        }
+    }
 
     #[test]
     fn request_id_from_int() {
@@ -432,49 +675,43 @@ mod tests {
 
     #[test]
     fn generate_params_validate_empty_prompt() {
-        let params = GenerateParams {
-            prompt: "".to_string(),
-            duration_sec: 30,
-            seed: None,
-            priority: Priority::Normal,
-        };
-        let err = params.validate().unwrap_err();
+        let params = make_params("", 30);
+        let err = params.validate(Backend::MusicGen).unwrap_err();
         assert_eq!(err.code, -32006);
     }
 
     #[test]
     fn generate_params_validate_long_prompt() {
-        let params = GenerateParams {
-            prompt: "x".repeat(1001),
-            duration_sec: 30,
-            seed: None,
-            priority: Priority::Normal,
-        };
-        let err = params.validate().unwrap_err();
+        let params = make_params(&"x".repeat(1001), 30);
+        let err = params.validate(Backend::MusicGen).unwrap_err();
         assert_eq!(err.code, -32006);
     }
 
     #[test]
     fn generate_params_validate_short_duration() {
-        let params = GenerateParams {
-            prompt: "test".to_string(),
-            duration_sec: 4,
-            seed: None,
-            priority: Priority::Normal,
-        };
-        let err = params.validate().unwrap_err();
+        let params = make_params("test", 4);
+        let err = params.validate(Backend::MusicGen).unwrap_err();
         assert_eq!(err.code, -32005);
     }
 
     #[test]
-    fn generate_params_validate_long_duration() {
-        let params = GenerateParams {
-            prompt: "test".to_string(),
-            duration_sec: 121,
-            seed: None,
-            priority: Priority::Normal,
-        };
-        let err = params.validate().unwrap_err();
+    fn generate_params_validate_long_duration_musicgen() {
+        let params = make_params("test", 121);
+        let err = params.validate(Backend::MusicGen).unwrap_err();
+        assert_eq!(err.code, -32005);
+    }
+
+    #[test]
+    fn generate_params_validate_long_duration_ace_step_ok() {
+        let params = make_params("test", 121);
+        // ACE-Step supports up to 240s, so 121 is valid
+        assert!(params.validate(Backend::AceStep).is_ok());
+    }
+
+    #[test]
+    fn generate_params_validate_too_long_duration_ace_step() {
+        let params = make_params("test", 241);
+        let err = params.validate(Backend::AceStep).unwrap_err();
         assert_eq!(err.code, -32005);
     }
 
@@ -485,8 +722,76 @@ mod tests {
             duration_sec: 30,
             seed: Some(42),
             priority: Priority::High,
+            backend: None,
+            inference_steps: None,
+            scheduler: None,
+            guidance_scale: None,
         };
-        assert!(params.validate().is_ok());
+        assert!(params.validate(Backend::MusicGen).is_ok());
+    }
+
+    #[test]
+    fn generate_params_validate_ace_step_params() {
+        let mut params = make_params("test", 60);
+        params.inference_steps = Some(30);
+        params.scheduler = Some("euler".to_string());
+        params.guidance_scale = Some(7.0);
+        assert!(params.validate(Backend::AceStep).is_ok());
+    }
+
+    #[test]
+    fn generate_params_invalid_inference_steps() {
+        let mut params = make_params("test", 60);
+        params.inference_steps = Some(300);
+        let err = params.validate(Backend::AceStep).unwrap_err();
+        assert_eq!(err.code, -32009);
+    }
+
+    #[test]
+    fn generate_params_invalid_guidance_scale() {
+        let mut params = make_params("test", 60);
+        params.guidance_scale = Some(50.0);
+        let err = params.validate(Backend::AceStep).unwrap_err();
+        assert_eq!(err.code, -32010);
+    }
+
+    #[test]
+    fn generate_params_invalid_scheduler() {
+        let mut params = make_params("test", 60);
+        params.scheduler = Some("unknown".to_string());
+        let err = params.validate(Backend::AceStep).unwrap_err();
+        assert_eq!(err.code, -32011);
+    }
+
+    #[test]
+    fn resolve_backend_default() {
+        let params = make_params("test", 30);
+        assert_eq!(
+            params.resolve_backend(Backend::MusicGen).unwrap(),
+            Backend::MusicGen
+        );
+        assert_eq!(
+            params.resolve_backend(Backend::AceStep).unwrap(),
+            Backend::AceStep
+        );
+    }
+
+    #[test]
+    fn resolve_backend_explicit() {
+        let mut params = make_params("test", 30);
+        params.backend = Some("ace_step".to_string());
+        assert_eq!(
+            params.resolve_backend(Backend::MusicGen).unwrap(),
+            Backend::AceStep
+        );
+    }
+
+    #[test]
+    fn resolve_backend_invalid() {
+        let mut params = make_params("test", 30);
+        params.backend = Some("invalid".to_string());
+        let err = params.resolve_backend(Backend::MusicGen).unwrap_err();
+        assert_eq!(err.code, -32007);
     }
 
     #[test]
@@ -503,5 +808,31 @@ mod tests {
         assert_eq!(JsonRpcError::queue_full(10).code, -32004);
         assert_eq!(JsonRpcError::invalid_duration(0).code, -32005);
         assert_eq!(JsonRpcError::invalid_prompt("").code, -32006);
+        assert_eq!(JsonRpcError::invalid_backend("").code, -32007);
+        assert_eq!(JsonRpcError::backend_not_installed(&Backend::AceStep).code, -32008);
+        assert_eq!(JsonRpcError::invalid_inference_steps(0).code, -32009);
+        assert_eq!(JsonRpcError::invalid_guidance_scale(0.0).code, -32010);
+        assert_eq!(JsonRpcError::invalid_scheduler("").code, -32011);
+    }
+
+    #[test]
+    fn backend_info_creation() {
+        let info = BackendInfo::new(Backend::MusicGen, BackendStatus::Ready, Some("v1".to_string()));
+        assert_eq!(info.backend_type, "musicgen");
+        assert_eq!(info.name, "MusicGen-Small");
+        assert_eq!(info.status, BackendStatus::Ready);
+        assert_eq!(info.min_duration_sec, 5);
+        assert_eq!(info.max_duration_sec, 120);
+        assert_eq!(info.sample_rate, 32000);
+        assert_eq!(info.model_version, Some("v1".to_string()));
+
+        let info = BackendInfo::new(Backend::AceStep, BackendStatus::NotInstalled, None);
+        assert_eq!(info.backend_type, "ace_step");
+        assert_eq!(info.name, "ACE-Step-3.5B");
+        assert_eq!(info.status, BackendStatus::NotInstalled);
+        assert_eq!(info.min_duration_sec, 5);
+        assert_eq!(info.max_duration_sec, 240);
+        assert_eq!(info.sample_rate, 48000);
+        assert!(info.model_version.is_none());
     }
 }

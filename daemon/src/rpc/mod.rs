@@ -15,9 +15,10 @@ pub mod server;
 pub mod types;
 
 // Re-export commonly used types
-pub use server::{run_server, send_notification, ServerState};
+pub use server::{run_server, send_notification, BackendStatuses, ServerState};
 pub use types::{
-    GenerateParams, GenerateResult, GenerationCompleteParams, GenerationErrorParams,
-    GenerationProgressParams, GenerationStatus, JsonRpcError, JsonRpcErrorResponse,
-    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, Priority, RequestId,
+    BackendInfo, BackendStatus, GenerateParams, GenerateResult, GenerationCompleteParams,
+    GenerationErrorParams, GenerationProgressParams, GenerationStatus, GetBackendsResult,
+    JsonRpcError, JsonRpcErrorResponse, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
+    Priority, RequestId,
 };

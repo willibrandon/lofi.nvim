@@ -16,41 +16,38 @@ use crate::models::musicgen;
 /// # Arguments
 ///
 /// * `backend` - Which backend to load (MusicGen or AceStep)
-/// * `config` - Daemon configuration with paths and device settings
+/// * `model_path` - Path to the model directory
+/// * `config` - Daemon configuration with device settings
 ///
 /// # Returns
 ///
 /// Returns `LoadedModels` containing the loaded model sessions.
 /// Returns an error if the model files are not found or fail to load.
-pub fn load_backend(backend: Backend, config: &DaemonConfig) -> Result<LoadedModels> {
+pub fn load_backend(backend: Backend, model_path: &Path, config: &DaemonConfig) -> Result<LoadedModels> {
     match backend {
-        Backend::MusicGen => load_musicgen(config),
-        Backend::AceStep => load_ace_step(config),
+        Backend::MusicGen => load_musicgen(model_path, config),
+        Backend::AceStep => load_ace_step(model_path, config),
     }
 }
 
-/// Loads MusicGen models from the configured path.
-fn load_musicgen(config: &DaemonConfig) -> Result<LoadedModels> {
-    let model_path = config.effective_model_path();
-    let models =
-        musicgen::load_sessions_with_device(&model_path, config.device, config.threads)?;
+/// Loads MusicGen models from the specified path.
+fn load_musicgen(model_path: &Path, config: &DaemonConfig) -> Result<LoadedModels> {
+    let models = musicgen::load_sessions_with_device(model_path, config.device, config.threads)?;
     Ok(LoadedModels::MusicGen(models))
 }
 
-/// Loads ACE-Step models from the configured path.
-fn load_ace_step(config: &DaemonConfig) -> Result<LoadedModels> {
-    let model_path = config.effective_ace_step_model_path();
-
+/// Loads ACE-Step models from the specified path.
+fn load_ace_step(model_path: &Path, config: &DaemonConfig) -> Result<LoadedModels> {
     // Check if model directory exists
     if !model_path.exists() {
         return Err(crate::error::DaemonError::backend_not_installed("ace_step"));
     }
 
     // Check for required model files
-    check_ace_step_models(&model_path)?;
+    check_ace_step_models(model_path)?;
 
     // Load ACE-Step models
-    let models = ace_step::AceStepModels::load(&model_path, config)?;
+    let models = ace_step::AceStepModels::load(model_path, config)?;
     Ok(LoadedModels::AceStep(models))
 }
 
@@ -90,16 +87,10 @@ fn check_ace_step_models(model_dir: &Path) -> Result<()> {
 ///
 /// This is useful for quickly checking backend availability without
 /// the overhead of loading large models into memory.
-pub fn check_backend_available(backend: Backend, config: &DaemonConfig) -> bool {
+pub fn check_backend_available(backend: Backend, model_path: &Path) -> bool {
     match backend {
-        Backend::MusicGen => {
-            let path = config.effective_model_path();
-            musicgen::check_models(&path).is_ok()
-        }
-        Backend::AceStep => {
-            let path = config.effective_ace_step_model_path();
-            check_ace_step_models(&path).is_ok()
-        }
+        Backend::MusicGen => musicgen::check_models(model_path).is_ok(),
+        Backend::AceStep => check_ace_step_models(model_path).is_ok(),
     }
 }
 
@@ -127,11 +118,11 @@ pub fn get_backend_version(backend: Backend, config: &DaemonConfig) -> Option<St
 pub fn detect_available_backends(config: &DaemonConfig) -> Vec<Backend> {
     let mut available = Vec::new();
 
-    if check_backend_available(Backend::MusicGen, config) {
+    if check_backend_available(Backend::MusicGen, &config.effective_model_path()) {
         available.push(Backend::MusicGen);
     }
 
-    if check_backend_available(Backend::AceStep, config) {
+    if check_backend_available(Backend::AceStep, &config.effective_ace_step_model_path()) {
         available.push(Backend::AceStep);
     }
 

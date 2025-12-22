@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::{DaemonError, Result};
+
 use super::ace_step::AceStepModels;
 use super::musicgen::MusicGenModels;
 
@@ -155,6 +157,96 @@ impl LoadedModels {
             LoadedModels::MusicGen(models) => Some(models.device_name()),
             LoadedModels::AceStep(models) => Some(models.device_name()),
         }
+    }
+
+    /// Generates audio using the appropriate backend.
+    ///
+    /// Dispatches to either MusicGen or ACE-Step generation based on which
+    /// backend is currently loaded.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - Generation parameters including prompt, duration, etc.
+    /// * `on_progress` - Progress callback receiving (current, total) values
+    ///
+    /// # Returns
+    ///
+    /// Audio samples at the appropriate sample rate for the backend:
+    /// - MusicGen: 32kHz
+    /// - ACE-Step: 48kHz
+    pub fn generate<F>(&mut self, params: &GenerateDispatchParams, on_progress: F) -> Result<Vec<f32>>
+    where
+        F: Fn(usize, usize),
+    {
+        use crate::cli::TOKENS_PER_SECOND;
+        use crate::generation::{generate_ace_step, generate_with_models};
+
+        match self {
+            LoadedModels::None => Err(DaemonError::model_load_failed("No models loaded")),
+            LoadedModels::MusicGen(models) => {
+                let max_tokens = params.duration_sec as usize * TOKENS_PER_SECOND;
+                generate_with_models(models, &params.prompt, max_tokens, on_progress)
+            }
+            LoadedModels::AceStep(models) => {
+                generate_ace_step(
+                    models,
+                    &params.prompt,
+                    params.duration_sec as f32,
+                    params.seed,
+                    params.inference_steps.unwrap_or(60),
+                    &params.scheduler.clone().unwrap_or_else(|| "euler".to_string()),
+                    params.guidance_scale.unwrap_or(15.0),
+                    on_progress,
+                )
+            }
+        }
+    }
+}
+
+/// Parameters for dispatching generation to the appropriate backend.
+#[derive(Debug, Clone)]
+pub struct GenerateDispatchParams {
+    /// Text prompt describing the music to generate.
+    pub prompt: String,
+    /// Duration in seconds.
+    pub duration_sec: u32,
+    /// Random seed for reproducibility.
+    pub seed: u64,
+    /// Backend to use (if different from loaded backend).
+    pub backend: Backend,
+    /// ACE-Step: Number of diffusion steps (1-200).
+    pub inference_steps: Option<u32>,
+    /// ACE-Step: Scheduler type (euler, heun, pingpong).
+    pub scheduler: Option<String>,
+    /// ACE-Step: Classifier-free guidance scale.
+    pub guidance_scale: Option<f32>,
+}
+
+impl GenerateDispatchParams {
+    /// Creates new generation dispatch parameters.
+    pub fn new(prompt: String, duration_sec: u32, seed: u64, backend: Backend) -> Self {
+        Self {
+            prompt,
+            duration_sec,
+            seed,
+            backend,
+            inference_steps: None,
+            scheduler: None,
+            guidance_scale: None,
+        }
+    }
+
+    /// Sets ACE-Step specific parameters.
+    pub fn with_ace_step_params(
+        mut self,
+        inference_steps: Option<u32>,
+        scheduler: Option<String>,
+        guidance_scale: Option<f32>,
+    ) -> Self {
+        self.inference_steps = inference_steps;
+        self.scheduler = scheduler;
+        self.guidance_scale = guidance_scale;
+        self
     }
 }
 

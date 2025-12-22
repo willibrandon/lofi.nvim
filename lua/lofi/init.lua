@@ -16,6 +16,7 @@ local state = {
   current_track_id = nil,       -- Track ID of current generation
   pending_callbacks = {},       -- Map of track_id -> callback
   initialized = false,          -- True if setup() has been called
+  default_backend = nil,        -- Default backend from config ("musicgen" or "ace_step")
 }
 
 --- Map daemon notification methods to event names
@@ -74,10 +75,12 @@ end
 ---   - model_path: string|nil - Path to ONNX model directory
 ---   - device: string|nil - Device selection: "auto", "cpu", "cuda", "metal"
 ---   - threads: number|nil - CPU thread count (nil = auto)
+---   - backend: string|nil - Default backend: "musicgen" or "ace_step"
 function M.setup(opts)
   opts = opts or {}
   daemon.setup(opts)
   state.initialized = true
+  state.default_backend = opts.backend
 end
 
 --- Check if generation is currently in progress
@@ -95,12 +98,16 @@ end
 --- Generate music from a text prompt
 --- @param opts string|table prompt string or generation options table
 ---   - prompt: string - Text description of desired music (required)
----   - duration_sec: number|nil - Duration in seconds (5-120, default 30)
+---   - duration_sec: number|nil - Duration in seconds (5-120 for MusicGen, 5-240 for ACE-Step, default 30)
 ---   - seed: number|nil - Random seed for reproducibility (nil = random)
 ---   - priority: string|nil - "normal" or "high" (default "normal")
+---   - backend: string|nil - Backend to use: "musicgen" or "ace_step" (default from config)
+---   - inference_steps: number|nil - ACE-Step only: diffusion steps (1-200, default 60)
+---   - scheduler: string|nil - ACE-Step only: "euler", "heun", or "pingpong" (default "euler")
+---   - guidance_scale: number|nil - ACE-Step only: CFG scale (1.0-30.0, default 15.0)
 --- @param callback function|nil callback receiving (error, result)
 ---   - error: table|nil - { code, message } on failure
----   - result: table|nil - { track_id, path, duration_sec, ... } on success
+---   - result: table|nil - { track_id, path, duration_sec, backend, ... } on success
 --- @return boolean success true if request was sent
 function M.generate(opts, callback)
   if not state.initialized then
@@ -122,12 +129,19 @@ function M.generate(opts, callback)
     return false
   end
 
-  -- Validate duration if provided
+  -- Determine backend (from opts, or state default, or nil for daemon default)
+  local backend = opts.backend or state.default_backend
+
+  -- Validate duration if provided (backend-specific limits checked by daemon)
   if opts.duration_sec then
-    if opts.duration_sec < 5 or opts.duration_sec > 120 then
+    local max_duration = backend == "ace_step" and 240 or 120
+    if opts.duration_sec < 5 or opts.duration_sec > max_duration then
       if callback then
         vim.schedule(function()
-          callback({ code = -32005, message = "Duration must be between 5 and 120 seconds" }, nil)
+          callback({
+            code = -32005,
+            message = string.format("Duration must be between 5 and %d seconds", max_duration)
+          }, nil)
         end)
       end
       return false
@@ -139,6 +153,16 @@ function M.generate(opts, callback)
     if callback then
       vim.schedule(function()
         callback({ code = -32602, message = "Priority must be 'normal' or 'high'" }, nil)
+      end)
+    end
+    return false
+  end
+
+  -- Validate backend if provided
+  if backend and backend ~= "musicgen" and backend ~= "ace_step" then
+    if callback then
+      vim.schedule(function()
+        callback({ code = -32007, message = "Backend must be 'musicgen' or 'ace_step'" }, nil)
       end)
     end
     return false
@@ -160,6 +184,11 @@ function M.generate(opts, callback)
     duration_sec = opts.duration_sec or 30,
     seed = opts.seed,
     priority = opts.priority or "normal",
+    backend = backend,
+    -- ACE-Step specific parameters
+    inference_steps = opts.inference_steps,
+    scheduler = opts.scheduler,
+    guidance_scale = opts.guidance_scale,
   }
 
   -- Send generate request
@@ -187,6 +216,7 @@ function M.generate(opts, callback)
       duration_sec = params.duration_sec,
       seed = result.seed,
       position = result.position,
+      backend = result.backend,
     })
   end)
 
@@ -197,6 +227,36 @@ end
 --- @return boolean true if daemon process is active
 function M.is_daemon_running()
   return daemon.is_running()
+end
+
+--- Get available backends and their status
+--- @param callback function callback receiving (error, result)
+---   - error: table|nil - { code, message } on failure
+---   - result: table|nil - { backends: array, default_backend: string }
+---     Each backend has: { type, name, status, min_duration_sec, max_duration_sec, sample_rate, model_version? }
+--- @return boolean success true if request was sent
+function M.get_backends(callback)
+  if not state.initialized then
+    M.setup({})
+  end
+
+  -- Initialize RPC if needed (starts daemon)
+  if not rpc.init(handle_notification) then
+    if callback then
+      vim.schedule(function()
+        callback({ code = -32000, message = "Failed to start daemon" }, nil)
+      end)
+    end
+    return false
+  end
+
+  local request_id = rpc.send_request("get_backends", {}, function(err, result)
+    if callback then
+      callback(err, result)
+    end
+  end)
+
+  return request_id ~= nil
 end
 
 --- Stop the daemon gracefully
@@ -223,26 +283,8 @@ function M.on(event, callback)
   return events.on(event, callback)
 end
 
--- Create :Lofi command on module load
-vim.api.nvim_create_user_command("Lofi", function(cmd)
-  local args = cmd.args
-  if args == "" then
-    vim.notify("[lofi] Usage: :Lofi <prompt> [duration]", vim.log.levels.ERROR)
-    return
-  end
-
-  -- Check if last word is a number (duration)
-  local prompt, duration = args, 10
-  local last_word = args:match("(%d+)$")
-  if last_word then
-    duration = tonumber(last_word)
-    prompt = args:sub(1, -(#last_word + 2)) -- remove duration and space
-    if prompt == "" then
-      prompt = args
-      duration = 10
-    end
-  end
-
+-- Helper to run generation with UI
+local function run_generation(prompt, duration, backend)
   -- Create floating window for progress
   local buf = vim.api.nvim_create_buf(false, true)
   local width = 50
@@ -268,7 +310,8 @@ vim.api.nvim_create_user_command("Lofi", function(cmd)
     end
   end
 
-  update("[lofi] Generating: " .. prompt)
+  local backend_label = backend and (" [" .. backend .. "]") or ""
+  update("[lofi]" .. backend_label .. " Generating: " .. prompt)
 
   local unsub_progress, unsub_complete, unsub_error
 
@@ -286,7 +329,7 @@ vim.api.nvim_create_user_command("Lofi", function(cmd)
   unsub_complete = M.on("generation_complete", function(data)
     cleanup()
     M.last_track = data.path
-    vim.notify("[lofi] Done! :LofiPlay to play", vim.log.levels.INFO)
+    vim.notify("[lofi] Done! :LofiPlay to play (" .. (data.backend or "unknown") .. ")", vim.log.levels.INFO)
     -- Auto-play
     vim.fn.jobstart({ "afplay", data.path })
   end)
@@ -296,8 +339,73 @@ vim.api.nvim_create_user_command("Lofi", function(cmd)
     vim.notify("[lofi] Error: " .. data.message, vim.log.levels.ERROR)
   end)
 
-  M.generate({ prompt = prompt, duration_sec = duration })
+  M.generate({ prompt = prompt, duration_sec = duration, backend = backend })
+end
+
+-- Create :Lofi command on module load
+vim.api.nvim_create_user_command("Lofi", function(cmd)
+  local args = cmd.args
+  if args == "" then
+    vim.notify("[lofi] Usage: :Lofi <prompt> [duration]", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Check if last word is a number (duration)
+  local prompt, duration = args, 10
+  local last_word = args:match("(%d+)$")
+  if last_word then
+    duration = tonumber(last_word) or 10
+    prompt = args:sub(1, -(#last_word + 2)) -- remove duration and space
+    if prompt == "" then
+      prompt = args
+      duration = 10
+    end
+  end
+
+  run_generation(prompt, duration, nil)
 end, { nargs = "*", desc = "Generate lofi music from prompt" })
+
+-- Create :LofiAce command for ACE-Step backend
+vim.api.nvim_create_user_command("LofiAce", function(cmd)
+  local args = cmd.args
+  if args == "" then
+    vim.notify("[lofi] Usage: :LofiAce <prompt> [duration]", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Check if last word is a number (duration)
+  local prompt, duration = args, 30
+  local last_word = args:match("(%d+)$")
+  if last_word then
+    duration = tonumber(last_word) or 30
+    prompt = args:sub(1, -(#last_word + 2))
+    if prompt == "" then
+      prompt = args
+      duration = 30
+    end
+  end
+
+  run_generation(prompt, duration, "ace_step")
+end, { nargs = "*", desc = "Generate music with ACE-Step backend" })
+
+-- Create :LofiBackends command to show available backends
+vim.api.nvim_create_user_command("LofiBackends", function()
+  M.get_backends(function(err, result)
+    if err then
+      vim.notify("[lofi] Error: " .. (err.message or "unknown"), vim.log.levels.ERROR)
+      return
+    end
+    vim.schedule(function()
+      local lines = { "Available backends (default: " .. result.default_backend .. "):" }
+      for _, b in ipairs(result.backends) do
+        local status_icon = b.status == "ready" and "✓" or "✗"
+        table.insert(lines, string.format("  %s %s (%s) - %d-%ds @ %dHz",
+          status_icon, b.name, b.type, b.min_duration_sec, b.max_duration_sec, b.sample_rate))
+      end
+      vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+    end)
+  end)
+end, { desc = "Show available lofi backends" })
 
 -- :LofiPlay command
 vim.api.nvim_create_user_command("LofiPlay", function()

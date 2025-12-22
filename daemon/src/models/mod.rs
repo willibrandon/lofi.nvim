@@ -17,7 +17,7 @@ pub mod musicgen;
 
 // Re-export commonly used types from submodules
 pub use ace_step::AceStepModels;
-pub use backend::{Backend, LoadedModels};
+pub use backend::{Backend, GenerateDispatchParams, LoadedModels};
 pub use device::{detect_available_providers, get_device_name, get_providers, AvailableProvider};
 pub use downloader::{ensure_ace_step_models, ensure_models};
 pub use loader::{check_backend_available, detect_available_backends, load_backend};

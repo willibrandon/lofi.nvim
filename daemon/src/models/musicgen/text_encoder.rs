@@ -126,8 +126,8 @@ mod tests {
     use std::path::PathBuf;
 
     fn get_model_dir() -> Option<PathBuf> {
-        let proj_dirs = directories::ProjectDirs::from("", "", "lofi-daemon")?;
-        let path = proj_dirs.data_dir().join("models");
+        let proj_dirs = directories::ProjectDirs::from("", "", "lofi.nvim")?;
+        let path = proj_dirs.cache_dir().join("musicgen");
         if path.exists() {
             Some(path)
         } else {

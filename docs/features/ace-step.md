@@ -37,10 +37,16 @@ ACE-Step is an **optional generation backend** alongside MusicGen.
 │   ├── umt5-base/
 │   ├── music_dcae_f8c8/
 │   └── music_vocoder/
+├── lora/                   -- Custom LoRA weights (optional)
+│   └── lofi-beats-v1/      -- Lofi-optimized LoRA from willibrandon/lofi-models
 └── tracks/                 -- Generated/cached audio
 ```
 
 The daemon detects available backends at startup and uses the configured preference.
+
+### Custom LoRA Support
+
+A lofi-optimized LoRA model is being developed at [lofi-lora](https://github.com/willibrandon/lofi-lora) and will be hosted on [willibrandon/lofi-models](https://huggingface.co/willibrandon/lofi-models). This provides enhanced lofi generation quality with ~2.1GB additional download (INT8 quantized).
 
 ## Constitution Alignment
 
@@ -360,4 +366,4 @@ ACE-Step supports additional capabilities that could be exposed later:
 - **Repainting**: Selectively regenerate specific time segments
 - **Extend**: Add audio to beginning or end of existing track
 - **Audio2Audio**: Use reference audio for style transfer
-- **LoRA**: Fine-tune for specific styles (e.g., RapMachine LoRA)
+- **LoRA**: Fine-tune for specific styles → see [lofi-lora](https://github.com/willibrandon/lofi-lora) for custom lofi LoRA training

@@ -88,7 +88,8 @@ From design.md:
 
 ## Dependencies
 - daemon-lifecycle.md (daemon handles prefetch logic)
-- ai-generation.md / procedural-generation.md (generation backend)
+- ai-generation.md (MusicGen backend)
+- ace-step.md (ACE-Step backend)
 - playlist-queue.md (queue management)
 - audio-playback.md (playback position monitoring)
 

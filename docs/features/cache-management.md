@@ -2,7 +2,7 @@
 
 ## Context
 
-This feature implements persistent storage of generated tracks on disk. Both AI and procedural generation output WAV/MP3 files to the cache directory. Cache is managed by the daemon but queryable from Lua.
+This feature implements persistent storage of generated tracks on disk. AI generation (MusicGen/ACE-Step) outputs WAV/MP3 files to the cache directory. Cache is managed by the daemon but queryable from Lua.
 
 ## Constitution Alignment
 

@@ -73,10 +73,10 @@ Optional integrations ~
 
 #### Generation time estimate
 Based on hardware detected, estimate generation time:
-- Modern CPU (AVX2): ~60-90s for 30s audio
-- Apple Silicon: ~30-45s
-- CUDA GPU: ~10-20s
-- Older CPU: ~3-5min (suggest procedural fallback)
+- Modern CPU (AVX2): ~60-90s for 30s audio (MusicGen), ~5min for 2min audio (ACE-Step)
+- Apple Silicon: ~30-45s (MusicGen), ~2-3min (ACE-Step)
+- CUDA GPU: ~10-20s (MusicGen), ~30-60s (ACE-Step)
+- Older CPU: ~3-5min for 30s audio (suggest using prefetch to mask latency)
 
 ### Optional dependency checks
 

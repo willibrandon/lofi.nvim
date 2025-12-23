@@ -323,6 +323,20 @@ Just the beat and you and me
 
 ---
 
+## Repository Setup
+
+The lofi-lora repository requires:
+
+- `requirements.txt` - Python dependencies (torch, diffusers, peft, librosa, etc.)
+- `config/lofi_lora_config.json` - LoRA hyperparameters
+- `scripts/` - Audio processing and dataset conversion utilities
+- `train.sh` - Wrapper script invoking ACE-Step's trainer.py
+- `.gitignore` - Exclude data/, checkpoints/, and generated datasets
+
+ACE-Step should be installed as an editable dependency from its local clone.
+
+---
+
 ## Phase 4: Data Processing Pipeline
 
 ### 4.1 Directory Structure
